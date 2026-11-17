@@ -55,7 +55,9 @@ export async function getManagerEvent(
   if (!/^\d+$/.test(id)) return null
   const [row] = await query<Omit<EditableEvent, 'courses' | 'collectionPoints'>>(
     `SELECT id::text, slug, title, COALESCE(theme, '') AS theme, event_date::text AS date,
-            COALESCE(intro, '') AS intro, COALESCE(hero_image, '') AS "heroImage",
+            COALESCE(intro, '') AS intro, COALESCE(title_fr, '') AS "titleFr",
+            COALESCE(theme_fr, '') AS "themeFr", COALESCE(intro_fr, '') AS "introFr",
+            COALESCE(hero_image, '') AS "heroImage",
             COALESCE(menu_image, '') AS "menuImage", price_cents AS "priceCents",
             deposit_cents AS "depositCents", capacity,
             to_char(cutoff_at AT TIME ZONE 'Europe/Paris', 'YYYY-MM-DD"T"HH24:MI') AS "cutoffAt",
@@ -67,9 +69,12 @@ export async function getManagerEvent(
 
   const [courses, points, facts] = await Promise.all([
     query<EditableCourse>(
-      `SELECT c.id::text, c.name, c.kind, COALESCE(c.description, '') AS description,
+      `SELECT c.id::text, c.name, COALESCE(c.name_fr, '') AS "nameFr", c.kind,
+              COALESCE(c.description, '') AS description,
+              COALESCE(c.description_fr, '') AS "descriptionFr",
               COALESCE(json_agg(json_build_object(
-                'id', o.id::text, 'name', o.name, 'vegetarian', o.vegetarian,
+                'id', o.id::text, 'name', o.name, 'nameFr', COALESCE(o.name_fr, ''),
+                'vegetarian', o.vegetarian,
                 'description', COALESCE(o.description, ''))
                 ORDER BY o.position) FILTER (WHERE o.id IS NOT NULL), '[]') AS options
          FROM courses c LEFT JOIN course_options o ON o.course_id = c.id
@@ -125,6 +130,9 @@ export function parseEvent(body: unknown): { event: EditableEvent } | { error: s
     theme: text(b.theme),
     date: text(b.date),
     intro: text(b.intro),
+    titleFr: text(b.titleFr),
+    themeFr: text(b.themeFr),
+    introFr: text(b.introFr),
     heroImage: text(b.heroImage),
     menuImage: text(b.menuImage),
     priceCents: int(b.priceCents),
@@ -136,11 +144,14 @@ export function parseEvent(body: unknown): { event: EditableEvent } | { error: s
     courses: courses.map((c: Record<string, unknown>) => ({
       id: id(c?.id),
       name: text(c?.name),
+      nameFr: text(c?.nameFr),
       kind: c?.kind === 'choice' ? 'choice' : 'fixed',
       description: text(c?.description),
+      descriptionFr: text(c?.descriptionFr),
       options: (Array.isArray(c?.options) ? c.options : []).map((o: Record<string, unknown>) => ({
         id: id(o?.id),
         name: text(o?.name),
+        nameFr: text(o?.nameFr),
         vegetarian: o?.vegetarian === true,
         description: text(o?.description),
       })),
@@ -230,6 +241,7 @@ export async function saveEvent(e: EditableEvent): Promise<SaveResult> {
   const fields = [
     e.slug, e.title, e.theme || null, e.date, e.intro || null, e.heroImage || null,
     e.menuImage || null, e.priceCents, e.depositCents, e.capacity, e.cutoffAt, e.status,
+    e.titleFr || null, e.themeFr || null, e.introFr || null,
   ]
   const cutoff = `($11::timestamp AT TIME ZONE 'Europe/Paris')`
   const statements: { text: string; params?: unknown[] }[] = [
@@ -237,14 +249,16 @@ export async function saveEvent(e: EditableEvent): Promise<SaveResult> {
       ? {
           text: `UPDATE events SET slug = $1, title = $2, theme = $3, event_date = $4, intro = $5,
                    hero_image = $6, menu_image = $7, price_cents = $8, deposit_cents = $9,
-                   capacity = $10, cutoff_at = ${cutoff}, status = $12, updated_at = now()
-                 WHERE id = $13`,
+                   capacity = $10, cutoff_at = ${cutoff}, status = $12,
+                   title_fr = $13, theme_fr = $14, intro_fr = $15, updated_at = now()
+                 WHERE id = $16`,
           params: [...fields, e.id],
         }
       : {
           text: `INSERT INTO events (slug, title, theme, event_date, intro, hero_image, menu_image,
-                   price_cents, deposit_cents, capacity, cutoff_at, status, is_test)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, ${cutoff}, $12, $13)`,
+                   price_cents, deposit_cents, capacity, cutoff_at, status,
+                   title_fr, theme_fr, intro_fr, is_test)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, ${cutoff}, $12, $13, $14, $15, $16)`,
           params: [...fields, isTest],
         },
   ]
@@ -285,14 +299,15 @@ export async function saveEvent(e: EditableEvent): Promise<SaveResult> {
     statements.push(
       c.id
         ? {
-            text: `UPDATE courses SET position = $2, name = $3, kind = $4, description = $5
-                    WHERE id = $6 AND event_id = ${EV}`,
-            params: [e.slug, pos, c.name, c.kind, c.description || null, c.id],
+            text: `UPDATE courses SET position = $2, name = $3, kind = $4, description = $5,
+                      name_fr = $6, description_fr = $7
+                    WHERE id = $8 AND event_id = ${EV}`,
+            params: [e.slug, pos, c.name, c.kind, c.description || null, c.nameFr || null, c.descriptionFr || null, c.id],
           }
         : {
-            text: `INSERT INTO courses (event_id, position, name, kind, description)
-                   VALUES (${EV}, $2, $3, $4, $5)`,
-            params: [e.slug, pos, c.name, c.kind, c.description || null],
+            text: `INSERT INTO courses (event_id, position, name, kind, description, name_fr, description_fr)
+                   VALUES (${EV}, $2, $3, $4, $5, $6, $7)`,
+            params: [e.slug, pos, c.name, c.kind, c.description || null, c.nameFr || null, c.descriptionFr || null],
           },
     )
     const COURSE = `(SELECT id FROM courses WHERE event_id = ${EV} AND position = $2)`
@@ -300,14 +315,15 @@ export async function saveEvent(e: EditableEvent): Promise<SaveResult> {
       statements.push(
         o.id
           ? {
-              text: `UPDATE course_options SET position = $3, name = $4, vegetarian = $5, description = $6
-                      WHERE id = $7 AND course_id = ${COURSE}`,
-              params: [e.slug, pos, oi + 1, o.name, o.vegetarian, o.description || null, o.id],
+              text: `UPDATE course_options SET position = $3, name = $4, vegetarian = $5, description = $6,
+                        name_fr = $7
+                      WHERE id = $8 AND course_id = ${COURSE}`,
+              params: [e.slug, pos, oi + 1, o.name, o.vegetarian, o.description || null, o.nameFr || null, o.id],
             }
           : {
-              text: `INSERT INTO course_options (course_id, position, name, vegetarian, description)
-                     VALUES (${COURSE}, $3, $4, $5, $6)`,
-              params: [e.slug, pos, oi + 1, o.name, o.vegetarian, o.description || null],
+              text: `INSERT INTO course_options (course_id, position, name, vegetarian, description, name_fr)
+                     VALUES (${COURSE}, $3, $4, $5, $6, $7)`,
+              params: [e.slug, pos, oi + 1, o.name, o.vegetarian, o.description || null, o.nameFr || null],
             },
       )
     })

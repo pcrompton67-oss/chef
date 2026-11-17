@@ -18,13 +18,13 @@ import { LEGAL_PATHS } from '@/lib/site'
 import type { LegalPageKey } from '@/lib/content'
 
 // The page and its metadata share one database lookup per request.
-const getEvent = cache(loadEvent)
+const getEvent = cache((slug: string, locale: Locale) => loadEvent(slug, locale))
 
 // Shared by the English and French page files in app/ so each stays a few lines.
 
 /** The Dine at Home page. `path` is "/" or "/dine-at-home" (both show the same page). */
 export async function renderDineAtHome(locale: Locale, path: string) {
-  const { upcoming, past } = await listEvents()
+  const { upcoming, past } = await listEvents(locale)
   return <DineAtHomePage locale={locale} path={path} upcoming={upcoming} past={past} />
 }
 
@@ -41,13 +41,13 @@ export function dineAtHomeMetadata(locale: Locale): Metadata {
 }
 
 export async function renderEvent(locale: Locale, slug: string) {
-  const event = await getEvent(slug)
+  const event = await getEvent(slug, locale)
   if (!event) notFound()
   return <EventPage event={event} locale={locale} path={`/dine-at-home/${slug}`} />
 }
 
 export async function eventMetadata(locale: Locale, slug: string): Promise<Metadata> {
-  const event = await getEvent(slug)
+  const event = await getEvent(slug, locale)
   if (!event) return {}
   const c = content[locale]
   const title = `${event.theme} · ${formatDate(event.date, locale)}`
@@ -69,7 +69,7 @@ export async function eventMetadata(locale: Locale, slug: string): Promise<Metad
 
 /** The page shown after ordering. `ref` is the order number from the address (digits only). */
 export async function renderThankYou(locale: Locale, slug: string, ref: string | string[] | undefined) {
-  const event = await getEvent(slug)
+  const event = await getEvent(slug, locale)
   if (!event) notFound()
   const reference = typeof ref === 'string' && /^\d{1,10}$/.test(ref) ? ref : null
   const [depositCents, settings] = reference
@@ -79,7 +79,8 @@ export async function renderThankYou(locale: Locale, slug: string, ref: string |
     <ThankYouPage
       event={event}
       locale={locale}
-      path={`/dine-at-home/${slug}/thank-you`}
+      // The language switch keeps the order number, so the bank details still show.
+      path={`/dine-at-home/${slug}/thank-you${reference ? `?ref=${reference}` : ''}`}
       reference={reference}
       transfer={
         reference && depositCents !== null && settings

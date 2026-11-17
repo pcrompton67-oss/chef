@@ -1,10 +1,15 @@
 import { connection } from 'next/server'
 import { query } from '@/lib/db'
+import type { Locale } from '@/lib/i18n'
 
 /**
  * Reading Dine at Home events for the public pages.
  * Drafts are never returned. Collection-point addresses are deliberately
  * NOT selected here, so they can never reach a public page.
+ *
+ * On the French site (issue #12) the evening's own wording (title, theme,
+ * intro, course and dish names) is the French version where Eleanor has
+ * entered one, and the English otherwise.
  */
 
 export type EventStatus = 'open' | 'sold_out' | 'closed' | 'done'
@@ -49,6 +54,9 @@ type EventRow = {
   theme: string | null
   date: string
   intro: string | null
+  title_fr: string | null
+  theme_fr: string | null
+  intro_fr: string | null
   hero_image: string | null
   menu_image: string | null
   price_cents: number
@@ -65,6 +73,7 @@ type EventRow = {
 // not yet run out.
 const EVENT_COLUMNS = `
   e.id::text, e.slug, e.title, e.theme, e.event_date::text AS date, e.intro,
+  e.title_fr, e.theme_fr, e.intro_fr,
   e.hero_image, e.menu_image, e.price_cents, e.deposit_cents, e.status, e.is_test,
   to_char(e.cutoff_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS cutoff_at,
   e.cutoff_at < now() AS cutoff_passed,
@@ -84,11 +93,21 @@ function availability(r: EventRow): Availability {
   return 'open'
 }
 
-function toSummary(r: EventRow): EventSummary {
+/** The French wording when on the French site and Eleanor entered one; otherwise the English. */
+function pick(en: string, fr: string | null | undefined, locale: Locale): string
+function pick(en: string | null, fr: string | null | undefined, locale: Locale): string | null
+function pick(en: string | null, fr: string | null | undefined, locale: Locale): string | null {
+  return locale === 'fr' && fr?.trim() ? fr : en
+}
+
+function toSummary(r: EventRow, locale: Locale): EventSummary {
+  const title = pick(r.title, r.title_fr, locale)
+  // A French title with no French theme shows the French title, not the English theme.
+  const theme = locale === 'fr' && r.title_fr?.trim() && !r.theme_fr?.trim() ? null : pick(r.theme, r.theme_fr, locale)
   return {
     slug: r.slug,
-    title: r.title,
-    theme: r.theme || r.title,
+    title,
+    theme: theme || title,
     date: r.date,
     heroImage: r.hero_image,
     priceCents: r.price_cents,
@@ -100,14 +119,14 @@ function toSummary(r: EventRow): EventSummary {
 }
 
 /** All published Dine at Home events, split into upcoming (soonest first) and past (latest first). */
-export async function listEvents(): Promise<{ upcoming: EventSummary[]; past: EventSummary[] }> {
+export async function listEvents(locale: Locale = 'en'): Promise<{ upcoming: EventSummary[]; past: EventSummary[] }> {
   await connection()
   const rows = await query<EventRow>(
     `SELECT ${EVENT_COLUMNS} FROM events e
       WHERE e.kind = 'dine_at_home' AND e.status <> 'draft'
       ORDER BY e.event_date`,
   )
-  const all = rows.map(toSummary)
+  const all = rows.map((r) => toSummary(r, locale))
   return {
     upcoming: all.filter((e) => e.availability !== 'past'),
     past: all.filter((e) => e.availability === 'past').reverse(),
@@ -115,7 +134,7 @@ export async function listEvents(): Promise<{ upcoming: EventSummary[]; past: Ev
 }
 
 /** One published event with its menu and collection times, or null. */
-export async function getEvent(slug: string): Promise<EventDetail | null> {
+export async function getEvent(slug: string, locale: Locale = 'en'): Promise<EventDetail | null> {
   await connection()
   const [row] = await query<EventRow>(
     `SELECT ${EVENT_COLUMNS} FROM events e
@@ -128,12 +147,15 @@ export async function getEvent(slug: string): Promise<EventDetail | null> {
     query<{
       id: string
       name: string
+      name_fr: string | null
       kind: 'fixed' | 'choice'
       description: string | null
-      options: { id: string; name: string; vegetarian: boolean }[]
+      description_fr: string | null
+      options: { id: string; name: string; name_fr: string | null; vegetarian: boolean }[]
     }>(
-      `SELECT c.id::text, c.name, c.kind, c.description,
-              COALESCE(json_agg(json_build_object('id', o.id::text, 'name', o.name, 'vegetarian', o.vegetarian)
+      `SELECT c.id::text, c.name, c.name_fr, c.kind, c.description, c.description_fr,
+              COALESCE(json_agg(json_build_object('id', o.id::text, 'name', o.name, 'name_fr', o.name_fr,
+                                                  'vegetarian', o.vegetarian)
                                 ORDER BY o.position) FILTER (WHERE o.id IS NOT NULL), '[]') AS options
          FROM courses c LEFT JOIN course_options o ON o.course_id = c.id
         WHERE c.event_id = $1
@@ -148,11 +170,17 @@ export async function getEvent(slug: string): Promise<EventDetail | null> {
   ])
 
   return {
-    ...toSummary(row),
-    intro: row.intro,
+    ...toSummary(row, locale),
+    intro: pick(row.intro, row.intro_fr, locale),
     menuImage: row.menu_image,
     cutoffAt: row.cutoff_at,
-    courses: courseRows,
+    courses: courseRows.map((c) => ({
+      id: c.id,
+      name: pick(c.name, c.name_fr, locale),
+      kind: c.kind,
+      description: pick(c.description, c.description_fr, locale),
+      options: c.options.map((o) => ({ id: o.id, name: pick(o.name, o.name_fr, locale), vegetarian: o.vegetarian })),
+    })),
     collectionPoints: pointRows,
   }
 }

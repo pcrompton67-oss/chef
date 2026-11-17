@@ -24,47 +24,54 @@ BEGIN
   ev_date := two_weeks + ((5 - extract(isodow FROM two_weeks)::int + 10) % 7) - 3;
 
   INSERT INTO events (slug, title, theme, event_date, intro, hero_image, menu_image,
-                      price_cents, deposit_cents, capacity, cutoff_at, status, is_test)
+                      price_cents, deposit_cents, capacity, cutoff_at, status, is_test,
+                      title_fr, theme_fr, intro_fr)
   VALUES ('test-inspired-by-india', 'TEST – Inspired by India', 'Inspired by India', ev_date,
           '4 courses · prepared by me · finished by you. Includes a personal video guide to heating, finishing & plating your meal.',
           '/CEJ_Food2.jpg', '/CEJ_Menu_Indian.jpg',
           price, deposit, 40,
           -- cut-off: two days before, at midnight Paris time
           ((ev_date - 2)::timestamp + time '23:59') AT TIME ZONE 'Europe/Paris',
-          'open', true)
+          'open', true,
+          'TEST – Inspiré par l’Inde', 'Inspiré par l’Inde',
+          '4 plats · préparés par moi · terminés par vous. Avec un guide vidéo personnel pour réchauffer, finir et dresser votre repas.')
   RETURNING id INTO ev;
 
   -- Menu
   WITH c AS (
-    INSERT INTO courses (event_id, position, name, kind, description)
-    VALUES (ev, 1, 'Starter', 'fixed', 'roasted red pepper & smoked chilli purée')
+    INSERT INTO courses (event_id, position, name, kind, description, name_fr, description_fr)
+    VALUES (ev, 1, 'Starter', 'fixed', 'roasted red pepper & smoked chilli purée',
+            'Entrée', 'purée de poivron rouge rôti & piment fumé')
     RETURNING id)
-  INSERT INTO course_options (course_id, position, name, vegetarian)
-  SELECT id, 1, 'Caramelised Onion, Squash & Feta Samosa', true FROM c;
+  INSERT INTO course_options (course_id, position, name, vegetarian, name_fr)
+  SELECT id, 1, 'Caramelised Onion, Squash & Feta Samosa', true, 'Samoussa oignon caramélisé, courge & feta' FROM c;
 
   WITH c AS (
-    INSERT INTO courses (event_id, position, name, kind, description)
+    INSERT INTO courses (event_id, position, name, kind, description, name_fr, description_fr)
     VALUES (ev, 2, 'Second course', 'fixed',
-            'cauliflower & onion bhaji · raisin & tamarind chutney · curry leaf')
+            'cauliflower & onion bhaji · raisin & tamarind chutney · curry leaf',
+            'Deuxième plat', 'bhaji chou-fleur & oignon · chutney raisin & tamarin · feuille de curry')
     RETURNING id)
-  INSERT INTO course_options (course_id, position, name, vegetarian)
-  SELECT id, 1, 'Spiced Cauliflower Velouté', true FROM c;
+  INSERT INTO course_options (course_id, position, name, vegetarian, name_fr)
+  SELECT id, 1, 'Spiced Cauliflower Velouté', true, 'Velouté de chou-fleur épicé' FROM c;
 
-  INSERT INTO courses (event_id, position, name, kind, description)
+  INSERT INTO courses (event_id, position, name, kind, description, name_fr, description_fr)
   VALUES (ev, 3, 'Main', 'choice',
-          'bombay potato pavé · spiced pea & spinach fricassée · makhani gravy')
+          'bombay potato pavé · spiced pea & spinach fricassée · makhani gravy',
+          'Plat', 'pavé de pommes de terre bombay · fricassée de petits pois & épinards épicés · sauce makhani')
   RETURNING id INTO c_main;
-  INSERT INTO course_options (course_id, position, name, vegetarian)
-  VALUES (c_main, 1, 'Chicken Tikka Masala Pithivier', false) RETURNING id INTO o_chicken;
-  INSERT INTO course_options (course_id, position, name, vegetarian)
-  VALUES (c_main, 2, 'Smoked Aubergine & Chickpea Pithivier', true) RETURNING id INTO o_aubergine;
+  INSERT INTO course_options (course_id, position, name, vegetarian, name_fr)
+  VALUES (c_main, 1, 'Chicken Tikka Masala Pithivier', false, 'Pithivier de poulet tikka masala') RETURNING id INTO o_chicken;
+  INSERT INTO course_options (course_id, position, name, vegetarian, name_fr)
+  VALUES (c_main, 2, 'Smoked Aubergine & Chickpea Pithivier', true, 'Pithivier d’aubergine fumée & pois chiches') RETURNING id INTO o_aubergine;
 
   WITH c AS (
-    INSERT INTO courses (event_id, position, name, kind, description)
-    VALUES (ev, 4, 'Dessert', 'fixed', 'jaggery caramel · cardamom crème anglaise')
+    INSERT INTO courses (event_id, position, name, kind, description, name_fr, description_fr)
+    VALUES (ev, 4, 'Dessert', 'fixed', 'jaggery caramel · cardamom crème anglaise',
+            'Dessert', 'caramel au jaggery · crème anglaise à la cardamome')
     RETURNING id)
-  INSERT INTO course_options (course_id, position, name, vegetarian)
-  SELECT id, 1, 'Masala Chai Sticky Toffee Pudding', true FROM c;
+  INSERT INTO course_options (course_id, position, name, vegetarian, name_fr)
+  SELECT id, 1, 'Masala Chai Sticky Toffee Pudding', true, 'Sticky toffee pudding au masala chaï' FROM c;
 
   -- Collection points (placeholder addresses)
   INSERT INTO collection_points (event_id, position, place, collect_time, address)

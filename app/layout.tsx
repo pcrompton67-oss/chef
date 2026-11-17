@@ -4,6 +4,7 @@ import { Cormorant_Garamond, Jost } from 'next/font/google'
 import { content } from '@/lib/content'
 import { SITE_URL } from '@/lib/site'
 import './globals.css'
+import { HtmlLang } from '@/components/html-lang'
 
 // Elegant high-contrast serif for headings, like the "E" in Eleanor's logo.
 const cormorant = Cormorant_Garamond({
@@ -58,11 +59,15 @@ export default function RootLayout({
         {/* Lets the fade-in hide content only when JavaScript is running. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: "document.documentElement.classList.add('js')",
+            __html:
+              "document.documentElement.classList.add('js');" +
+              // French pages (/fr…) tell browsers and screen readers they're in French.
+              "if(/^\\/fr(\\/|$)/.test(location.pathname))document.documentElement.lang='fr'",
           }}
         />
       </head>
       <body className="font-sans antialiased">
+        <HtmlLang />
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>

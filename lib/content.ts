@@ -293,6 +293,12 @@ const en = {
     error: 'Something went wrong. Please try again.',
     back: 'Back to the website',
   },
+  notFound: {
+    eyebrow: 'Page not found',
+    title: 'Nothing here',
+    text: 'This page doesn’t exist, or has moved.',
+    back: 'See the Dine at Home evenings',
+  },
   menuWords: {
     or: 'or',
   },
@@ -816,6 +822,12 @@ const fr: Content = {
     invalid: 'Ce lien de désabonnement n’est pas valide. Répondez simplement à l’un de mes e-mails et je vous retirerai de la liste.',
     error: 'Une erreur est survenue. Merci de réessayer.',
     back: 'Retour au site',
+  },
+  notFound: {
+    eyebrow: 'Page introuvable',
+    title: 'Rien ici',
+    text: 'Cette page n’existe pas, ou a été déplacée.',
+    back: 'Voir les soirées Dîner à la maison',
   },
   menuWords: {
     or: 'ou',

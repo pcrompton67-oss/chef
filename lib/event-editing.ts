@@ -27,6 +27,7 @@ export const IMAGES = [
 export type EditableOption = {
   id: string | null // null = new, not yet saved
   name: string
+  nameFr: string // French wording ('' = use the English)
   vegetarian: boolean
   description: string
 }
@@ -34,8 +35,10 @@ export type EditableOption = {
 export type EditableCourse = {
   id: string | null
   name: string
+  nameFr: string
   kind: 'fixed' | 'choice'
   description: string
+  descriptionFr: string
   options: EditableOption[]
 }
 
@@ -53,6 +56,10 @@ export type EditableEvent = {
   theme: string
   date: string // YYYY-MM-DD
   intro: string
+  /** French wording for the French site (issue #12); empty = use the English. */
+  titleFr: string
+  themeFr: string
+  introFr: string
   heroImage: string
   menuImage: string
   priceCents: number

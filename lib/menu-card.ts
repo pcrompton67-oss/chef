@@ -15,7 +15,8 @@ const MODEL = 'claude-opus-5-5'
 /** What Claude returns for one card (checked against this shape). */
 const MenuCardSchema = z.object({
   isMenuCard: z.boolean().describe('False if the photo is not a menu at all.'),
-  title: z.string().describe('The evening’s theme as printed, in normal capitalisation, e.g. "Inspired by India". Empty if none.'),
+  title: z.string().describe('The evening’s theme in English, in normal capitalisation, e.g. "Inspired by India". Empty if none.'),
+  titleFr: z.string().describe('The same title in French, e.g. "Inspiré par l’Inde". Empty if no title.'),
   date: z
     .object({
       day: z.number().int(),
@@ -27,17 +28,21 @@ const MenuCardSchema = z.object({
   pricePerPersonEuros: z.number().nullable().describe('Price per person if printed, e.g. 40.'),
   intro: z
     .string()
-    .describe('Any general lines printed under the price or menu (e.g. what is included), joined into one short paragraph. Empty if none.'),
+    .describe('Any general lines printed under the price or menu (e.g. what is included), joined into one short paragraph, in English. Empty if none.'),
+  introFr: z.string().describe('The same paragraph in French. Empty if none.'),
   courses: z.array(
     z.object({
       name: z.string().describe('Starter, Second course, Main, Dessert… (usually not printed: name it from its position).'),
+      nameFr: z.string().describe('The course name in French: Entrée, Deuxième plat, Plat, Dessert…'),
       kind: z.enum(['fixed', 'choice']).describe('"choice" when two or more dishes are offered with "or".'),
       description: z
         .string()
         .describe('The smaller line of components under the dish(es), exactly as printed, components separated by " · ". Empty if none.'),
+      descriptionFr: z.string().describe('The same components line in French, components separated by " · ". Empty if none.'),
       dishes: z.array(
         z.object({
           name: z.string().describe('The dish name as printed, without the (v) mark.'),
+          nameFr: z.string().describe('The dish name in French, without the (v) mark.'),
           vegetarian: z.boolean().describe('True if marked (v).'),
         }),
       ),
@@ -54,12 +59,16 @@ const SYSTEM = `You read photos of the printed menu cards of Eleanor Jessica, a 
 
 Copy the menu exactly as printed, keeping her wording, spelling and accents (fix only obvious capitalisation, e.g. spaced capitals in the title). Do not invent dishes, components, prices or dates. Courses are in printed order. A course offering two or more dishes joined by "or" is a "choice" course with one entry per dish; its components line (printed once, under the dishes) is the course description. "(v)" after a dish means vegetarian. Join a description that wraps onto two printed lines into one line, with components separated by " · ".
 
+Her cards are usually printed in English. Each text also has a French field ("titleFr", "nameFr", …) for the French version of her website: write natural, appetising French as a French restaurant menu would, keeping dish names that are proper names or foreign words (e.g. "makhani", "bombay potato" may stay as they are if a French menu would keep them). If the card is printed in French, put the printed French in the French fields and a faithful English translation in the main fields.
+
 Ignore the logo, "Dine at Home" heading and decorative lines. If anything is unreadable or you had to guess, say so in "uncertain" rather than guessing silently.`
 
 /** What the console receives: the parts of an evening the card can fill. */
 export type MenuCardDraft = {
   title: string
   intro: string
+  titleFr: string
+  introFr: string
   date: string // YYYY-MM-DD, or '' if not on the card
   priceCents: number | null
   courses: EditableCourse[]
@@ -142,16 +151,21 @@ function toDraft(card: MenuCard): MenuCardDraft {
   return {
     title: card.title.trim(),
     intro: card.intro.trim(),
+    titleFr: card.titleFr.trim(),
+    introFr: card.introFr.trim(),
     date,
     priceCents: price !== null && price > 0 && price < 1000 ? Math.round(price * 100) : null,
     courses: card.courses.map((c) => ({
       id: null,
       name: c.name.trim(),
+      nameFr: c.nameFr.trim(),
       kind: c.kind === 'choice' && c.dishes.length >= 2 ? 'choice' : 'fixed',
       description: c.description.trim(),
+      descriptionFr: c.descriptionFr.trim(),
       options: c.dishes.map((d) => ({
         id: null,
         name: d.name.replace(/\s*\(v\)\s*$/i, '').trim(),
+        nameFr: d.nameFr.replace(/\s*\(v\)\s*$/i, '').trim(),
         vegetarian: d.vegetarian,
         description: '',
       })),

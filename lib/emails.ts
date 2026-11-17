@@ -59,22 +59,33 @@ export function sendingEnabled(): boolean {
 
 /* ---------- Loading an order for an email ---------- */
 
-async function loadOrder(orderId: string): Promise<(EmailOrder & { eventId: string; status: string }) | null> {
+/**
+ * One order with everything its emails need. The evening's title and menu are
+ * in the customer's language (French wording where Eleanor entered it, issue
+ * #12), unless `english` is set (Eleanor's own copy).
+ */
+async function loadOrder(
+  orderId: string,
+  english = false,
+): Promise<(EmailOrder & { eventId: string; status: string }) | null> {
   if (!/^\d+$/.test(orderId)) return null
+  // $2 = false for Eleanor's English copy; otherwise French orders get the French wording.
+  const fr = (en: string, frCol: string) =>
+    `CASE WHEN $2::boolean AND o.language = 'fr' AND NULLIF(btrim(${frCol}), '') IS NOT NULL THEN ${frCol} ELSE ${en} END`
   const [row] = await query<EmailOrder & { eventId: string; status: string; eventTitle: string; eventDate: string }>(
     `SELECT o.id::text, o.name, o.email, o.mobile, o.language, o.diners,
             COALESCE(o.allergies, '') AS allergies, COALESCE(o.notes, '') AS notes, o.source,
             o.payment_method AS "paymentMethod", o.status,
             o.total_cents AS "totalCents", o.deposit_cents AS "depositCents", o.balance_cents AS "balanceCents",
             o.deposit_paid_at IS NOT NULL AS "depositPaid",
-            e.id::text AS "eventId", e.title AS "eventTitle", e.event_date::text AS "eventDate",
+            e.id::text AS "eventId", ${fr('e.title', 'e.title_fr')} AS "eventTitle", e.event_date::text AS "eventDate",
             p.place, to_char(p.collect_time, 'HH24:MI') AS time, p.address,
             CASE WHEN cu.marketing_consent AND cu.unsubscribed_at IS NULL
                  THEN cu.unsubscribe_token END AS "unsubscribeToken",
             (SELECT json_agg(json_build_object(
-                      'name', c.name,
+                      'name', ${fr('c.name', 'c.name_fr')},
                       'dishes', (SELECT json_agg(json_build_object(
-                                          'name', co.name,
+                                          'name', ${fr('co.name', 'co.name_fr')},
                                           'quantity', CASE WHEN c.kind = 'choice' THEN l.quantity END)
                                         ORDER BY co.position)
                                    FROM course_options co
@@ -87,7 +98,7 @@ async function loadOrder(orderId: string): Promise<(EmailOrder & { eventId: stri
        JOIN collection_points p ON p.id = o.collection_point_id
        LEFT JOIN customers cu ON cu.id = o.customer_id
       WHERE o.id = $1`,
-    [orderId],
+    [orderId, !english],
   )
   if (!row) return null
   const { eventTitle, eventDate, ...rest } = row
@@ -208,7 +219,8 @@ export function emailNewWebsiteOrder(orderId: string) {
     if (!o) return
     const settings = await getEmailSettings()
     if (o.email) await send('received', o.email, o, settings)
-    await send('owner', OWNER_EMAIL, o, settings)
+    const own = o.language === 'fr' ? await loadOrder(orderId, true) : o
+    if (own) await send('owner', OWNER_EMAIL, own, settings)
   })
 }
 

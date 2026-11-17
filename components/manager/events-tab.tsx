@@ -10,6 +10,7 @@ import {
   isUploadedPhoto,
   type UploadedPhoto,
   type EditableCourse,
+  type EditableOption,
   type EditableEvent,
   type EventFacts,
   type ManagerStatus,
@@ -400,9 +401,17 @@ function EventEditor({
             }
           />
         </Field>
-        <Field label="Theme" hint="Optional short theme line. Leave empty to use the title.">
-          <input className={inputClass} value={form.theme} onChange={(e) => update({ theme: e.target.value })} />
+        <Field label="Title in French" hint={FR_HINT}>
+          <input lang="fr" className={inputClass} value={form.titleFr} onChange={(e) => update({ titleFr: e.target.value })} />
         </Field>
+        <div className="grid gap-6 sm:grid-cols-2">
+          <Field label="Theme" hint="Optional short theme line. Leave empty to use the title.">
+            <input className={inputClass} value={form.theme} onChange={(e) => update({ theme: e.target.value })} />
+          </Field>
+          <Field label="Theme in French" hint="Optional. Leave empty to use the French title.">
+            <input lang="fr" className={inputClass} value={form.themeFr} onChange={(e) => update({ themeFr: e.target.value })} />
+          </Field>
+        </div>
         <Field
           label="Web address"
           hint={`The end of the evening’s page address: ${SITE_URL.replace(/^https?:\/\//, '')}/dine-at-home/${form.slug || '…'}`}
@@ -453,6 +462,9 @@ function EventEditor({
         <Field label="Introduction" hint="A few lines shown under the title on the evening’s page.">
           <textarea rows={3} className={inputClass} value={form.intro} onChange={(e) => update({ intro: e.target.value })} />
         </Field>
+        <Field label="Introduction in French" hint={FR_HINT}>
+          <textarea lang="fr" rows={3} className={inputClass} value={form.introFr} onChange={(e) => update({ introFr: e.target.value })} />
+        </Field>
         <div className="grid gap-6 sm:grid-cols-2">
           <ImagePicker label="Main photo" value={form.heroImage} onChange={(v) => update({ heroImage: v })} />
           <ImagePicker label="Menu picture" value={form.menuImage} onChange={(v) => update({ menuImage: v })} />
@@ -498,9 +510,12 @@ function EventEditor({
                   Remove
                 </SmallButton>
               </div>
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-3">
                 <Field label="Course name" hint="e.g. Starter, Main, Dessert.">
                   <input className={inputClass} value={c.name} onChange={(e) => setCourse(i, { name: e.target.value })} />
+                </Field>
+                <Field label="Course name in French" hint="e.g. Entrée, Plat, Dessert.">
+                  <input lang="fr" className={inputClass} value={c.nameFr} onChange={(e) => setCourse(i, { nameFr: e.target.value })} />
                 </Field>
                 <Field label="Type">
                   <select
@@ -525,6 +540,14 @@ function EventEditor({
                   onChange={(e) => setCourse(i, { description: e.target.value })}
                 />
               </Field>
+              <Field label="Description line in French" hint={FR_HINT}>
+                <input
+                  lang="fr"
+                  className={inputClass}
+                  value={c.descriptionFr}
+                  onChange={(e) => setCourse(i, { descriptionFr: e.target.value })}
+                />
+              </Field>
 
               <div className="space-y-3">
                 <p className="caps text-stone">{c.kind === 'choice' ? 'Dishes to choose from' : 'Dish'}</p>
@@ -539,6 +562,14 @@ function EventEditor({
                         className={cn(inputClass, 'min-w-0 basis-full sm:flex-1 sm:basis-56')}
                         value={o.name}
                         onChange={(e) => setOption({ name: e.target.value })}
+                      />
+                      <input
+                        aria-label="Dish name in French"
+                        lang="fr"
+                        placeholder="Dish name in French (optional)"
+                        className={cn(inputClass, 'order-last min-w-0 basis-full')}
+                        value={o.nameFr}
+                        onChange={(e) => setOption({ nameFr: e.target.value })}
                       />
                       <label className="flex cursor-pointer items-center gap-2 text-sm text-charcoal">
                         <input
@@ -590,7 +621,7 @@ function EventEditor({
           type="button"
           className={buttonStyles('outline', 'px-5 py-2')}
           onClick={() =>
-            setCourses([...form.courses, { id: null, name: '', kind: 'fixed', description: '', options: [blankOption()] }])
+            setCourses([...form.courses, blankCourse()])
           }
         >
           + Add a course
@@ -893,13 +924,21 @@ function TestTag() {
 
 /* ---------- Helpers ---------- */
 
-function blankOption() {
-  return { id: null, name: '', vegetarian: false, description: '' }
+/** Shown under the French boxes (issue #12). */
+const FR_HINT = 'For the French site. Leave empty to show the English there.'
+
+function blankOption(): EditableOption {
+  return { id: null, name: '', nameFr: '', vegetarian: false, description: '' }
+}
+
+function blankCourse(): EditableCourse {
+  return { id: null, name: '', nameFr: '', kind: 'fixed', description: '', descriptionFr: '', options: [blankOption()] }
 }
 
 function blankEvent(): EditableEvent {
   return {
     id: null, slug: '', title: '', theme: '', date: '', intro: '', heroImage: '', menuImage: '',
+    titleFr: '', themeFr: '', introFr: '',
     priceCents: 0, depositCents: 0, capacity: 40, cutoffAt: '', status: 'draft', isTest: false,
     courses: [], collectionPoints: [],
   }
@@ -940,6 +979,7 @@ function eventFromCard(card: MenuCardDraft, base: EditableEvent | null): { start
   if (base?.isTest)
     notes.push('That was a test evening: make sure the collection points have real addresses before opening for orders.')
   notes.push('Please check every dish, (v) mark and description line against the card.')
+  notes.push('The French wording was written by Claude: please read it through before opening the evening.')
   return {
     start: {
       ...from,
@@ -947,6 +987,9 @@ function eventFromCard(card: MenuCardDraft, base: EditableEvent | null): { start
       slug: slugify(card.title),
       theme: '',
       intro: card.intro || from.intro,
+      titleFr: card.titleFr,
+      themeFr: '',
+      introFr: card.introFr || (card.intro ? '' : from.introFr),
       date: card.date,
       cutoffAt: card.date ? defaultCutoff(card.date) : '',
       priceCents: card.priceCents ?? from.priceCents,
