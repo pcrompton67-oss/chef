@@ -5,8 +5,12 @@ import { t } from '@/lib/content'
 import type { Locale } from '@/lib/i18n'
 import { buttonStyles } from '@/components/site/button-styles'
 
-/** "Tell me about the next one": an email box for hearing when the next evening opens. */
-export function NotifyForm({ locale }: { locale: Locale }) {
+/**
+ * "Tell me about the next one": an email box for hearing when the next evening
+ * opens. Signing up puts the email on the mailing list (lib/customers.ts).
+ * `eventSlug` is the evening whose page it's on, so the console shows where it came from.
+ */
+export function NotifyForm({ locale, eventSlug }: { locale: Locale; eventSlug: string }) {
   const c = t(locale).notify
   const [email, setEmail] = useState('')
   const [state, setState] = useState<'idle' | 'sending' | 'done' | 'error'>('idle')
@@ -18,7 +22,7 @@ export function NotifyForm({ locale }: { locale: Locale }) {
     const res = await fetch('/api/notify', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ email, locale }),
+      body: JSON.stringify({ email, locale, event: eventSlug }),
     }).catch(() => null)
     setState(res?.ok ? 'done' : 'error')
   }
@@ -60,6 +64,7 @@ export function NotifyForm({ locale }: { locale: Locale }) {
           {c.error}
         </p>
       ) : null}
+      <p className="mt-5 text-left text-xs leading-relaxed text-stone">{c.consent}</p>
     </form>
   )
 }

@@ -1,7 +1,7 @@
 import { query } from '@/lib/db'
 import { renderEmail, type BankDetails, type EmailKind, type EmailOrder } from '@/lib/email-templates'
 import { getBusinessSettings } from '@/lib/settings'
-import { EMAIL_FROM, EMAIL_REPLY_TO, OWNER_EMAIL } from '@/lib/site'
+import { EMAIL_FROM, EMAIL_REPLY_TO, OWNER_EMAIL, SITE_URL } from '@/lib/site'
 
 /**
  * Sending the emails through Resend (issue #13), and the console's email
@@ -50,6 +50,8 @@ async function loadOrder(orderId: string): Promise<(EmailOrder & { eventId: stri
             o.deposit_paid_at IS NOT NULL AS "depositPaid",
             e.id::text AS "eventId", e.title AS "eventTitle", e.event_date::text AS "eventDate",
             p.place, to_char(p.collect_time, 'HH24:MI') AS time, p.address,
+            CASE WHEN cu.marketing_consent AND cu.unsubscribed_at IS NULL
+                 THEN cu.unsubscribe_token END AS "unsubscribeToken",
             (SELECT json_agg(json_build_object(
                       'name', c.name,
                       'dishes', (SELECT json_agg(json_build_object(
@@ -64,6 +66,7 @@ async function loadOrder(orderId: string): Promise<(EmailOrder & { eventId: stri
        FROM orders o
        JOIN events e ON e.id = o.event_id
        JOIN collection_points p ON p.id = o.collection_point_id
+       LEFT JOIN customers cu ON cu.id = o.customer_id
       WHERE o.id = $1`,
     [orderId],
   )
@@ -104,7 +107,23 @@ async function send(
           // Resend ignores a repeat with the same key for 24 hours: a second safety net.
           'Idempotency-Key': `${kind}-${o.id}`,
         },
-        body: JSON.stringify({ from: EMAIL_FROM, to: [to], reply_to: EMAIL_REPLY_TO, subject, html, text }),
+        body: JSON.stringify({
+          from: EMAIL_FROM,
+          to: [to],
+          reply_to: EMAIL_REPLY_TO,
+          subject,
+          html,
+          text,
+          // Lets email apps show their own "Unsubscribe" button (customer emails, mailing list only).
+          ...(kind !== 'owner' && o.unsubscribeToken
+            ? {
+                headers: {
+                  'List-Unsubscribe': `<${SITE_URL}/api/unsubscribe?t=${o.unsubscribeToken}>`,
+                  'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+                },
+              }
+            : {}),
+        }),
       })
       const body = (await res.json().catch(() => ({}))) as { id?: string; message?: string }
       if (res.ok) {

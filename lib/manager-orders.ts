@@ -199,9 +199,9 @@ WITH ev AS (
 ok AS (SELECT * FROM ev WHERE places_left >= $2::int OR $16::boolean),
 -- Remember the customer only when there's an email (phone orders may have none).
 cust AS (
-  INSERT INTO customers (name, email, mobile, language, marketing_consent, consent_at, is_test)
+  INSERT INTO customers (name, email, mobile, language, marketing_consent, consent_at, source, is_test)
   SELECT $4::text, $6::text, NULLIF($5::text, ''), $8::text, $9::boolean,
-         CASE WHEN $9::boolean THEN now() END, ok.is_test
+         CASE WHEN $9::boolean THEN now() END, 'console', ok.is_test
     FROM ok WHERE $6::text <> ''
   ON CONFLICT (lower(email)) DO UPDATE
      SET name = EXCLUDED.name,

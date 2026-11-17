@@ -581,7 +581,7 @@ function AddOrder({
         {f.email ? (
           <label className="flex cursor-pointer gap-3 text-sm text-charcoal">
             <input type="checkbox" className="tick mt-0.5" checked={f.marketing} onChange={(e) => set({ marketing: e.target.checked })} />
-            They’re happy to hear about future evenings by email
+            They agreed to receive new box dates and other news by email
           </label>
         ) : null}
       </div>
