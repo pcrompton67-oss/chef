@@ -33,10 +33,10 @@ export function SiteHeader({ locale, path = '/' }: { locale: Locale; path?: stri
         </Link>
         <nav className="flex items-center gap-5 sm:gap-8">
           <Link
-            href={`${localePath('/', locale)}#menu`}
+            href={localePath('/dine-at-home', locale)}
             className="caps text-charcoal transition-colors hover:text-gold-deep"
           >
-            {c.nav.menu}
+            {c.nav.dineAtHome}
           </Link>
           <LanguageSwitch locale={locale} path={path} />
         </nav>

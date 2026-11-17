@@ -1,15 +1,8 @@
-import type { Metadata } from 'next'
-import { HomePage } from '@/components/home-page'
-import { content } from '@/lib/content'
+import { dineAtHomeMetadata, renderDineAtHome } from '@/lib/routes'
 
-const site = content.fr.site
-
-export const metadata: Metadata = {
-  title: { absolute: site.title },
-  description: site.description,
-  alternates: { languages: { en: '/', fr: '/fr' } },
-}
+// For now the site opens straight onto Dine at Home.
+export const metadata = dineAtHomeMetadata('fr')
 
 export default function Page() {
-  return <HomePage locale="fr" />
+  return renderDineAtHome('fr', '/')
 }

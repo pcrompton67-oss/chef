@@ -45,8 +45,12 @@ Fine dining, calm and elegant. Taken from Eleanor's own files in `public/`:
 
 - `lib/content.ts`: **all customer-facing wording**, with an English and a French slot. Change wording there, not in components.
 - `lib/i18n.ts`: language helpers. English lives at `/`, French at `/fr`.
-- `components/site/`: shared layout pieces: header, footer, section, button styles, fade-in, tasting menu.
-- `components/home-page.tsx`: the (placeholder) home page, used by `app/page.tsx` and `app/fr/page.tsx`.
+- `components/site/`: shared layout pieces: header, footer, section, button styles, fade-in, tasting menu, availability note.
+- Public pages (no home page for now; `/` shows Dine at Home):
+  - `components/dine-at-home-page.tsx`: the Dine at Home page (`/`, `/dine-at-home`, and `/fr/…`).
+  - `components/event-page.tsx`: one evening (`/dine-at-home/[slug]`): menu, price, collection times, order-form placeholder.
+  - `lib/events.ts`: reads published events from the database. It never selects collection addresses, so they can't appear publicly.
+  - `lib/routes.tsx`: shared code behind the English and French page files in `app/`.
 - `components/pin-gate.tsx`, `app/manager/`: the PIN screen and the console shell (add new console sections to its `TABS` list). Console header and tabs are hidden when printing (`print:hidden`).
 - `app/api/verify-pin`: checks the PIN.
 - `v0_memories/`: v0's leftover reference copies from the old app. Not used; ignore.
@@ -56,7 +60,7 @@ Fine dining, calm and elegant. Taken from Eleanor's own files in `public/`:
 - Next.js 16 (App Router), React 19, TypeScript, Tailwind 4, shadcn/ui. Package manager: **pnpm**.
 - Next 16 differs from older versions: check `node_modules/next/dist/docs/` before writing Next-specific code.
 - `pnpm build` skips type checks (`next.config.mjs`), so also run `npx tsc --noEmit`.
-- Database: Neon Postgres, raw SQL via `@neondatabase/serverless` (`lib/db.ts`), no ORM. The tables are defined by the numbered files in `migrations/` (see "Database" below). Treat any table change as hard to undo (ask first).
+- Database: Neon Postgres, raw SQL via `query()` in `lib/db.ts` (`@neondatabase/serverless`; falls back to plain `pg` when `DATABASE_URL` is a localhost address, for local previews), no ORM. The tables are defined by the numbered files in `migrations/` (see "Database" below). Treat any table change as hard to undo (ask first).
 - Manager auth: a single PIN (`MANAGER_PIN`), sent as the `x-pin` header and checked in `lib/pins.ts`.
 - Dates are always Europe/Paris time.
 - No automated tests.

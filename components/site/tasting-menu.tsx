@@ -30,7 +30,9 @@ export function TastingMenu({ menu, locale }: { menu: Menu; locale: Locale }) {
                     {words.or}
                   </p>
                 ) : null}
-                <p className="tasting-course">{dish}</p>
+                <p className="tasting-course">
+                  <DishName name={dish} />
+                </p>
               </Fragment>
             ))}
             <p className="tasting-components">{course.components.join(' · ')}</p>
@@ -43,7 +45,26 @@ export function TastingMenu({ menu, locale }: { menu: Menu; locale: Locale }) {
         <span className="rule mb-10 w-40" aria-hidden />
         <p className="font-display text-2xl tracking-wider text-charcoal">{menu.price}</p>
         <p className="mt-3 text-sm tracking-wider text-stone">{menu.notes.join(' · ')}</p>
+        {menu.footnote ? (
+          <p className="mx-auto mt-4 max-w-sm font-display text-base italic leading-relaxed text-stone">
+            {menu.footnote}
+          </p>
+        ) : null}
       </FadeIn>
     </div>
+  )
+}
+
+/** Keeps a trailing "(v)" in lower case while the dish name is in small capitals. */
+function DishName({ name }: { name: string }) {
+  const m = name.match(/^(.*?)\s*(\([a-z]+\))$/i)
+  if (!m) return <>{name}</>
+  return (
+    <>
+      {m[1]}{'\u00a0'}
+      <span className="font-sans text-sm text-stone" style={{ fontVariantCaps: 'normal' }}>
+        {m[2].toLowerCase()}
+      </span>
+    </>
   )
 }

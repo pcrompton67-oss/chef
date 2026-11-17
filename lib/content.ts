@@ -4,6 +4,9 @@ import type { Locale } from '@/lib/i18n'
  * All customer-facing wording lives here, with an English and a French slot.
  * Change wording here, never inside the page components.
  * The `fr` object must have the same shape as `en` (TypeScript checks this).
+ *
+ * Event details (theme, intro, dishes, towns) come from the database and are
+ * shown as Eleanor typed them.
  */
 
 export type Course = {
@@ -19,6 +22,8 @@ export type TastingMenu = {
   courses: Course[]
   price: string
   notes: string[]
+  /** Optional italic line under the price. */
+  footnote?: string
 }
 
 const en = {
@@ -27,60 +32,74 @@ const en = {
     strapline: 'cheffe privée',
     title: 'Eleanor Jessica · cheffe privée',
     description:
-      'Eleanor Jessica, private chef. Seasonal tasting menus, prepared with care for your table.',
+      'Eleanor Jessica, cheffe privée. Themed four-course menus, prepared by me and finished by you at home.',
   },
   nav: {
-    home: 'Home',
-    menu: 'Menu',
+    dineAtHome: 'Dine at Home',
     switchLanguage: 'Français',
   },
-  home: {
-    heroEyebrow: 'cheffe privée',
-    heroTitle: 'Eleanor Jessica',
-    heroLead: 'Seasonal tasting menus, prepared with care for your table.',
-    heroCta: 'View the menu',
-    introTitle: 'A dinner to remember',
-    introBody:
-      'This page is a placeholder while the new site is being built. Eleanor’s story, menus and booking details will appear here soon.',
-    imageAlt1: 'A plated dish by Eleanor Jessica',
-    imageAlt2: 'A plated dish by Eleanor Jessica',
-    menuSectionTitle: 'A sample menu',
-  },
-  sampleMenu: {
-    eyebrow: 'Dine at home',
-    title: 'Inspired by India',
-    courses: [
+  dineAtHome: {
+    metaTitle: 'Dine at Home',
+    eyebrow: 'Eleanor Jessica · cheffe privée',
+    title: 'Dine at Home',
+    lead: 'Four courses · prepared by me · finished by you',
+    intro: [
+      'Every few weeks I cook a themed four-course menu for a small number of homes nearby. I prepare each course in my kitchen; you collect it on the evening and finish it at home, at your own pace.',
+      'Each menu comes with a short personal video in which I show you how to warm, finish and plate every course, so that it reaches your table just as I would serve it.',
+    ],
+    heroAlt: 'Spiced cauliflower velouté on dark slate, by Eleanor Jessica',
+    stepsTitle: 'How it works',
+    steps: [
       {
-        dishes: ['Caramelised Onion, Squash & Feta Samosa (v)'],
-        components: ['roasted red pepper & smoked chilli purée'],
+        title: 'Choose',
+        text: 'Reserve your places and choose a main course for each guest.',
       },
       {
-        dishes: ['Spiced Cauliflower Velouté (v)'],
-        components: [
-          'cauliflower & onion bhaji',
-          'raisin & tamarind chutney',
-          'curry leaf',
-        ],
+        title: 'Collect',
+        text: 'Collect your meal on the evening, at the time and place nearest to you.',
       },
       {
-        dishes: [
-          'Chicken Tikka Masala Pithivier',
-          'Smoked Aubergine & Chickpea Pithivier (v)',
-        ],
-        components: [
-          'bombay potato pavé',
-          'spiced pea & spinach fricassée',
-          'makhani gravy',
-        ],
-      },
-      {
-        dishes: ['Masala Chai Sticky Toffee Pudding (v)'],
-        components: ['jaggery caramel', 'cardamom crème anglaise'],
+        title: 'Finish',
+        text: 'Follow my video guide to warm, finish and plate each course at home.',
       },
     ],
-    price: '40 € pp',
-    notes: ['4 courses', 'prepared by me', 'finished by you'],
-  } satisfies TastingMenu,
+    upcomingTitle: 'Upcoming evenings',
+    pastTitle: 'Past evenings',
+    none: 'There is no evening open just now. The next menu will be announced here soon.',
+    viewMenu: 'View the menu',
+    perPerson: 'per person',
+  },
+  event: {
+    back: 'All evenings',
+    eyebrow: 'Dine at Home',
+    heroAlt: 'A dish by Eleanor Jessica',
+    secondImageAlt: 'Pithivier with pea & spinach fricassée, by Eleanor Jessica',
+    courseCount: (n: number) => `${n} courses`,
+    menuNotes: ['prepared by me', 'finished by you'],
+    vegetarian: '(v)',
+    videoNote:
+      'Includes a personal video guide to heating, finishing & plating your meal.',
+    printedMenu: 'View the printed menu',
+    detailsTitle: 'The evening',
+    perPerson: 'per person',
+    deposit: (amount: string) =>
+      `${amount} per person to reserve your places, the balance on collection.`,
+    orderBy: (day: string) => `Orders close at midnight on ${day}.`,
+    placesLeft: (n: number) => (n === 1 ? 'One place left' : `${n} places left`),
+    soldOut: 'Sold out',
+    closed: 'Orders closed',
+    past: 'This evening has passed',
+    collectionTitle: 'Collection',
+    collectionNote:
+      'Choose the time and place that suits you best when you order. The exact address is sent with your confirmation.',
+    orderTitle: 'Reserve your places',
+    orderPlaceholder: 'Online ordering will open here very soon.',
+    soldOutNote:
+      'This evening is fully booked. Thank you so much — the next menu will be announced soon.',
+    closedNote: 'Orders for this evening have now closed. The next menu will be announced soon.',
+    pastNote: 'This evening has passed. Do have a look at the menus to come.',
+    testNotice: 'Test evening · for trying out the site only',
+  },
   menuWords: {
     or: 'or',
   },
@@ -97,59 +116,74 @@ const fr: Content = {
     strapline: 'cheffe privée',
     title: 'Eleanor Jessica · cheffe privée',
     description:
-      'Eleanor Jessica, cheffe privée. Menus dégustation de saison, préparés avec soin pour votre table.',
+      'Eleanor Jessica, cheffe privée. Des menus à thème en quatre plats, préparés par moi et terminés par vous, chez vous.',
   },
   nav: {
-    home: 'Accueil',
-    menu: 'Menu',
+    dineAtHome: 'Dîner à la maison',
     switchLanguage: 'English',
   },
-  home: {
-    heroEyebrow: 'cheffe privée',
-    heroTitle: 'Eleanor Jessica',
-    heroLead: 'Menus dégustation de saison, préparés avec soin pour votre table.',
-    heroCta: 'Découvrir le menu',
-    introTitle: 'Un dîner inoubliable',
-    introBody:
-      'Cette page est provisoire, le temps de construire le nouveau site. L’histoire d’Eleanor, ses menus et les réservations arrivent bientôt.',
-    imageAlt1: 'Une assiette signée Eleanor Jessica',
-    imageAlt2: 'Une assiette signée Eleanor Jessica',
-    menuSectionTitle: 'Un exemple de menu',
-  },
-  sampleMenu: {
-    eyebrow: 'Dîner à la maison',
-    title: 'Inspiré par l’Inde',
-    courses: [
+  dineAtHome: {
+    metaTitle: 'Dîner à la maison',
+    eyebrow: 'Eleanor Jessica · cheffe privée',
+    title: 'Dîner à la maison',
+    lead: 'Quatre plats · préparés par moi · terminés par vous',
+    intro: [
+      'Toutes les quelques semaines, je cuisine un menu à thème en quatre plats pour un petit nombre de foyers des environs. Je prépare chaque plat dans ma cuisine ; vous venez le chercher le soir même et vous le terminez chez vous, à votre rythme.',
+      'Chaque menu est accompagné d’une courte vidéo personnelle, dans laquelle je vous montre comment réchauffer, terminer et dresser chaque plat, pour qu’il arrive à votre table tel que je le servirais.',
+    ],
+    heroAlt: 'Velouté de chou-fleur épicé sur ardoise, par Eleanor Jessica',
+    stepsTitle: 'Comment ça marche',
+    steps: [
       {
-        dishes: ['Samosa oignon caramélisé, courge & feta (v)'],
-        components: ['purée de poivron rouge rôti & piment fumé'],
+        title: 'Choisir',
+        text: 'Réservez vos places et choisissez un plat principal pour chaque convive.',
       },
       {
-        dishes: ['Velouté de chou-fleur épicé (v)'],
-        components: [
-          'bhaji de chou-fleur & oignon',
-          'chutney raisin & tamarin',
-          'feuille de curry',
-        ],
+        title: 'Récupérer',
+        text: 'Récupérez votre repas le soir même, à l’heure et au lieu le plus proche de chez vous.',
       },
       {
-        dishes: [
-          'Pithivier poulet tikka masala',
-          'Pithivier aubergine fumée & pois chiches (v)',
-        ],
-        components: [
-          'pavé de pommes de terre bombay',
-          'fricassée de petits pois & épinards épicés',
-          'sauce makhani',
-        ],
-      },
-      {
-        dishes: ['Sticky toffee pudding au masala chai (v)'],
-        components: ['caramel de jaggery', 'crème anglaise à la cardamome'],
+        title: 'Terminer',
+        text: 'Suivez ma vidéo pour réchauffer, terminer et dresser chaque plat chez vous.',
       },
     ],
-    price: '40 € par personne',
-    notes: ['4 plats', 'préparés par moi', 'terminés par vous'],
+    upcomingTitle: 'Prochaines soirées',
+    pastTitle: 'Soirées passées',
+    none: 'Aucune soirée n’est ouverte pour le moment. Le prochain menu sera annoncé ici très bientôt.',
+    viewMenu: 'Voir le menu',
+    perPerson: 'par personne',
+  },
+  event: {
+    back: 'Toutes les soirées',
+    eyebrow: 'Dîner à la maison',
+    heroAlt: 'Une assiette signée Eleanor Jessica',
+    secondImageAlt: 'Pithivier et fricassée de petits pois & épinards, par Eleanor Jessica',
+    courseCount: (n: number) => `${n} plats`,
+    menuNotes: ['préparés par moi', 'terminés par vous'],
+    vegetarian: '(v)',
+    videoNote:
+      'Avec une vidéo personnelle pour réchauffer, terminer et dresser votre repas.',
+    printedMenu: 'Voir le menu imprimé',
+    detailsTitle: 'La soirée',
+    perPerson: 'par personne',
+    deposit: (amount: string) =>
+      `${amount} par personne pour réserver vos places, le solde à la récupération.`,
+    orderBy: (day: string) => `Commandes jusqu’à minuit le ${day.toLowerCase()}.`,
+    placesLeft: (n: number) => (n === 1 ? 'Plus qu’une place' : `${n} places disponibles`),
+    soldOut: 'Complet',
+    closed: 'Commandes closes',
+    past: 'Cette soirée est passée',
+    collectionTitle: 'Récupération',
+    collectionNote:
+      'Choisissez l’heure et le lieu qui vous conviennent lors de votre commande. L’adresse exacte vous est envoyée avec votre confirmation.',
+    orderTitle: 'Réserver vos places',
+    orderPlaceholder: 'La commande en ligne ouvrira ici très bientôt.',
+    soldOutNote:
+      'Cette soirée est complète. Merci beaucoup — le prochain menu sera annoncé très bientôt.',
+    closedNote:
+      'Les commandes pour cette soirée sont closes. Le prochain menu sera annoncé très bientôt.',
+    pastNote: 'Cette soirée est passée. Découvrez les prochains menus.',
+    testNotice: 'Soirée test · uniquement pour essayer le site',
   },
   menuWords: {
     or: 'ou',
