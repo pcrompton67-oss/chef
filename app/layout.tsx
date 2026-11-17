@@ -23,7 +23,11 @@ const jost = Jost({
 
 const site = content.en.site
 
+// The site's public address, used for share previews (social images).
+const SITE_URL = 'https://chefej.popol.tech'
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: { default: site.title, template: `%s · ${site.name}` },
   description: site.description,
   icons: { icon: '/CEJ_Logo.jpg', apple: '/CEJ_Logo.jpg' },

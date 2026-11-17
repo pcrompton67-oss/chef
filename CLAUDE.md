@@ -17,6 +17,7 @@ The site is being rebuilt and is not yet public. Still work on a branch and get 
 Website and management console for **Eleanor Jessica, cheffe privée** (a private chef). Paul builds and hosts it. It was started from a copy of Paul's sausage-rolls ordering app; all the sausage-specific code has been removed (issue #1). Customer-facing features (menus, bookings, etc.) are added through GitHub issues.
 
 - On the site her name is always "Eleanor Jessica" with the strapline "cheffe privée". Never "Chef Eleanor".
+- Address for now: `chefej.popol.tech` (set as `SITE_URL` in `app/layout.tsx`; change it there if the domain changes).
 - Eleanor uses `/manager` (PIN-protected) to run things.
 
 ## Look and feel
