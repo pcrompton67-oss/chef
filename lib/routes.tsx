@@ -6,6 +6,7 @@ import { formatDate, localePath, type Locale } from '@/lib/i18n'
 import { getEvent as loadEvent, listEvents } from '@/lib/events'
 import { DineAtHomePage } from '@/components/dine-at-home-page'
 import { EventPage } from '@/components/event-page'
+import { ThankYouPage } from '@/components/thank-you-page'
 
 // The page and its metadata share one database lookup per request.
 const getEvent = cache(loadEvent)
@@ -55,4 +56,23 @@ export async function eventMetadata(locale: Locale, slug: string): Promise<Metad
       images: event.heroImage ? [{ url: event.heroImage }] : undefined,
     },
   }
+}
+
+/** The page shown after ordering. `ref` is the order number from the address (digits only). */
+export async function renderThankYou(locale: Locale, slug: string, ref: string | string[] | undefined) {
+  const event = await getEvent(slug)
+  if (!event) notFound()
+  const reference = typeof ref === 'string' && /^\d{1,10}$/.test(ref) ? ref : null
+  return (
+    <ThankYouPage
+      event={event}
+      locale={locale}
+      path={`/dine-at-home/${slug}/thank-you`}
+      reference={reference}
+    />
+  )
+}
+
+export function thankYouMetadata(locale: Locale): Metadata {
+  return { title: content[locale].thanks.title, robots: { index: false } }
 }

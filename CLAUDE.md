@@ -48,8 +48,10 @@ Fine dining, calm and elegant. Taken from Eleanor's own files in `public/`:
 - `components/site/`: shared layout pieces: header, footer, section, button styles, fade-in, tasting menu, availability note.
 - Public pages (no home page for now; `/` shows Dine at Home):
   - `components/dine-at-home-page.tsx`: the Dine at Home page (`/`, `/dine-at-home`, and `/fr/…`).
-  - `components/event-page.tsx`: one evening (`/dine-at-home/[slug]`): menu, price, collection times, order-form placeholder.
+  - `components/event-page.tsx`: one evening (`/dine-at-home/[slug]`): menu, price, collection times, then the order form (or, when sold out, a "tell me about the next one" box). "Only X places left" shows at 8 or fewer (`LOW_PLACES` in `lib/events.ts`).
   - `lib/events.ts`: reads published events from the database. It never selects collection addresses, so they can't appear publicly.
+  - `components/order-form.tsx`: the order form (live check that dishes chosen = diners). `components/thank-you-page.tsx`: shown after ordering (`/dine-at-home/[slug]/thank-you`).
+  - `lib/orders.ts` (`/api/orders`, `/api/notify`): checks and saves orders. It re-checks everything, locks the event while counting places so two people can't take the last ones, and saves the customer and their consent. Website orders are "held" awaiting a bank transfer, with no time limit for now (max 12 diners per order).
   - `lib/routes.tsx`: shared code behind the English and French page files in `app/`.
 - `components/pin-gate.tsx`, `app/manager/`: the PIN screen and the console shell (add new console sections to its `TABS` list). Console header and tabs are hidden when printing (`print:hidden`).
 - `app/api/verify-pin`: checks the PIN.

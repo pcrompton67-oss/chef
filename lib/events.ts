@@ -9,6 +9,9 @@ import { query } from '@/lib/db'
 
 export type EventStatus = 'open' | 'sold_out' | 'closed' | 'done'
 
+/** At or below this many places left, pages say "Only X places left". */
+export const LOW_PLACES = 8
+
 /** What a visitor sees: can they still order, and how many places are left. */
 export type Availability = 'open' | 'sold_out' | 'closed' | 'past'
 
@@ -30,12 +33,13 @@ export type EventDetail = EventSummary & {
   menuImage: string | null
   cutoffAt: string // ISO timestamp
   courses: {
+    id: string
     name: string
     kind: 'fixed' | 'choice'
     description: string | null
-    options: { name: string; vegetarian: boolean }[]
+    options: { id: string; name: string; vegetarian: boolean }[]
   }[]
-  collectionPoints: { place: string; time: string }[] // time as HH:MM
+  collectionPoints: { id: string; place: string; time: string }[] // time as HH:MM
 }
 
 type EventRow = {
@@ -122,21 +126,22 @@ export async function getEvent(slug: string): Promise<EventDetail | null> {
 
   const [courseRows, pointRows] = await Promise.all([
     query<{
+      id: string
       name: string
       kind: 'fixed' | 'choice'
       description: string | null
-      options: { name: string; vegetarian: boolean }[]
+      options: { id: string; name: string; vegetarian: boolean }[]
     }>(
-      `SELECT c.name, c.kind, c.description,
-              COALESCE(json_agg(json_build_object('name', o.name, 'vegetarian', o.vegetarian)
+      `SELECT c.id::text, c.name, c.kind, c.description,
+              COALESCE(json_agg(json_build_object('id', o.id::text, 'name', o.name, 'vegetarian', o.vegetarian)
                                 ORDER BY o.position) FILTER (WHERE o.id IS NOT NULL), '[]') AS options
          FROM courses c LEFT JOIN course_options o ON o.course_id = c.id
         WHERE c.event_id = $1
         GROUP BY c.id ORDER BY c.position`,
       [row.id],
     ),
-    query<{ place: string; time: string }>(
-      `SELECT place, to_char(collect_time, 'HH24:MI') AS time
+    query<{ id: string; place: string; time: string }>(
+      `SELECT id::text, place, to_char(collect_time, 'HH24:MI') AS time
          FROM collection_points WHERE event_id = $1 ORDER BY position`,
       [row.id],
     ),

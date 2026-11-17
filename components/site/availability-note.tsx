@@ -1,9 +1,9 @@
 import { t } from '@/lib/content'
 import type { Locale } from '@/lib/i18n'
-import type { EventSummary } from '@/lib/events'
+import { LOW_PLACES, type EventSummary } from '@/lib/events'
 import { cn } from '@/lib/utils'
 
-/** "12 places left", "Sold out", "Orders closed" or "This evening has passed". */
+/** "Places available", "Only 3 places left" (8 or fewer), "Sold out", "Orders closed" or "This evening has passed". */
 export function AvailabilityNote({
   event,
   locale,
@@ -14,9 +14,12 @@ export function AvailabilityNote({
   className?: string
 }) {
   const c = t(locale).event
+  const low = event.availability === 'open' && event.placesLeft <= LOW_PLACES
   const text =
     event.availability === 'open'
-      ? c.placesLeft(event.placesLeft)
+      ? low
+        ? c.placesLeftLow(event.placesLeft)
+        : c.placesAvailable
       : event.availability === 'sold_out'
         ? c.soldOut
         : event.availability === 'closed'
@@ -26,7 +29,7 @@ export function AvailabilityNote({
     <p
       className={cn(
         'text-xs uppercase tracking-[0.25em]',
-        event.availability === 'open' ? 'text-stone' : 'text-gold-deep',
+        event.availability === 'open' && !low ? 'text-stone' : 'text-gold-deep',
         className,
       )}
     >

@@ -17,8 +17,11 @@ import { SiteFooter } from '@/components/site/site-footer'
 import { TastingMenu } from '@/components/site/tasting-menu'
 import { buttonStyles } from '@/components/site/button-styles'
 import { AvailabilityNote } from '@/components/site/availability-note'
+import { OrderForm } from '@/components/order-form'
+import { NotifyForm } from '@/components/notify-form'
+import { MAX_DINERS } from '@/lib/orders'
 
-/** One Dine at Home evening: photo, menu, price, collection times and (soon) the order form. */
+/** One Dine at Home evening: photo, menu, price, collection times and the order form. */
 export function EventPage({
   event: e,
   locale,
@@ -178,19 +181,22 @@ export function EventPage({
           </div>
         </Section>
 
-        {/* Order form: placeholder until ordering is built */}
+        {/* Order form, or why ordering isn't possible */}
         <Section tone="ivory" id="order" title={closedNote ? undefined : c.orderTitle}>
-          <FadeIn>
-            {closedNote ? (
+          {closedNote ? (
+            <FadeIn className="space-y-16">
               <p className="mx-auto max-w-md text-center font-display text-xl italic leading-relaxed text-stone">
                 {closedNote}
               </p>
-            ) : (
-              <div className="mx-auto max-w-xl border border-dashed border-stone/40 px-6 py-16 text-center">
-                <p className="font-display text-xl italic text-stone">{c.orderPlaceholder}</p>
-              </div>
-            )}
-          </FadeIn>
+              {e.availability === 'sold_out' ? <NotifyForm locale={locale} /> : null}
+            </FadeIn>
+          ) : (
+            <OrderForm
+              event={e}
+              locale={locale}
+              maxDiners={Math.min(MAX_DINERS, e.placesLeft)}
+            />
+          )}
         </Section>
       </main>
 

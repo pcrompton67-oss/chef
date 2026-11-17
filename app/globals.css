@@ -115,6 +115,18 @@
     @apply h-px flex-1 bg-stone/30;
   }
 
+  /* Square tick box / radio for forms: thin border, filled square when chosen. */
+  .tick {
+    @apply size-4 shrink-0 cursor-pointer appearance-none rounded-none border border-charcoal/60 bg-ivory transition-colors duration-300;
+  }
+  .tick:checked {
+    @apply border-charcoal bg-charcoal;
+    box-shadow: inset 0 0 0 3px var(--ivory);
+  }
+  .tick:focus-visible {
+    @apply outline-1 outline-offset-2 outline-gold;
+  }
+
   /* Tasting menu: centred, small-caps course names, middle-dot components. */
   .tasting-course {
     @apply font-display text-2xl leading-snug text-charcoal sm:text-[1.7rem];

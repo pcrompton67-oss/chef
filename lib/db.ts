@@ -30,7 +30,8 @@ function isLocal(url: string): boolean {
 }
 
 // Only the part of the 'pg' library used here (it ships without type definitions).
-type LocalPool = { query(text: string, params: unknown[]): Promise<{ rows: unknown[] }> }
+type LocalClient = { query(text: string, params: unknown[]): Promise<{ rows: unknown[] }> }
+type LocalPool = LocalClient & { connect(): Promise<LocalClient & { release(): void }> }
 
 let pool: LocalPool | undefined
 async function localPool(url: string): Promise<LocalPool> {
@@ -40,4 +41,39 @@ async function localPool(url: string): Promise<LocalPool> {
     pool = new pg.default.Pool({ connectionString: url }) as LocalPool
   }
   return pool
+}
+
+/**
+ * Runs several SQL statements as one all-or-nothing transaction and returns
+ * each statement's rows. Later statements see the effects of earlier ones, and
+ * a row locked with FOR UPDATE stays locked until the end, so two people can't
+ * both take the last places at an event.
+ */
+export async function transaction(
+  statements: { text: string; params?: unknown[] }[],
+): Promise<Record<string, unknown>[][]> {
+  const url = process.env.DATABASE_URL
+  if (!url) throw new Error('DATABASE_URL is not set')
+
+  if (isLocal(url)) {
+    const client = await (await localPool(url)).connect()
+    try {
+      await client.query('BEGIN', [])
+      const results: Record<string, unknown>[][] = []
+      for (const s of statements) {
+        results.push((await client.query(s.text, s.params ?? [])).rows as Record<string, unknown>[])
+      }
+      await client.query('COMMIT', [])
+      return results
+    } catch (err) {
+      await client.query('ROLLBACK', []).catch(() => {})
+      throw err
+    } finally {
+      client.release()
+    }
+  }
+  const sql = neon(url)
+  return (await sql.transaction(
+    statements.map((s) => sql.query(s.text, s.params ?? [])),
+  )) as Record<string, unknown>[][]
 }
