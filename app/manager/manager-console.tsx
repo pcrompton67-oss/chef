@@ -35,19 +35,19 @@ export async function send(url: string, method: string, body?: unknown) {
 }
 
 // Console sections. New sections (menus, bookings, …) are added here.
+// Keep the list short enough to fit on a computer without a scroll bar (issue #32).
 const TABS = [
-  { id: 'overview', label: 'Overview' },
-  { id: 'orders', label: 'Orders' },
-  { id: 'printouts', label: 'Printouts' },
   { id: 'events', label: 'Events' },
+  { id: 'orders', label: 'Orders' },
   { id: 'customers', label: 'Customers' },
+  { id: 'printouts', label: 'Printouts' },
   { id: 'emails', label: 'Emails' },
   { id: 'settings', label: 'Settings' },
 ] as const
 type Tab = (typeof TABS)[number]['id']
 
 export function ManagerConsole() {
-  const [tab, setTab] = useState<Tab>('overview')
+  const [tab, setTab] = useState<Tab>('events')
 
   return (
     <div className="min-h-dvh bg-background pb-16 print:min-h-0 print:bg-white print:pb-0">
@@ -105,7 +105,6 @@ export function ManagerConsole() {
       </div>
 
       <main className="mx-auto max-w-3xl px-4 py-8 print:max-w-none print:p-0">
-        {tab === 'overview' ? <Overview /> : null}
         {tab === 'orders' ? <OrdersTab /> : null}
         {tab === 'printouts' ? <PrintoutsTab /> : null}
         {tab === 'events' ? <EventsTab /> : null}
@@ -117,17 +116,3 @@ export function ManagerConsole() {
   )
 }
 
-function Overview() {
-  return (
-    <div className="border border-border bg-ivory px-6 py-10 text-center">
-      <h2 className="text-3xl text-charcoal">Welcome</h2>
-      <span className="rule my-5" aria-hidden />
-      <p className="mx-auto max-w-md leading-relaxed text-stone">
-        Use Orders for the day-to-day bookings and Events to set up your Dine at
-        Home evenings, Printouts for the prep list, run sheet and box labels,
-        Customers for your mailing list, Emails for reminders and email previews, and Settings for your bank
-        details.
-      </p>
-    </div>
-  )
-}
