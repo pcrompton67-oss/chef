@@ -54,6 +54,7 @@ Fine dining, calm and elegant. Taken from Eleanor's own files in `public/`:
   - `lib/orders.ts` (`/api/orders`, `/api/notify`): checks and saves orders. It re-checks everything, locks the event while counting places so two people can't take the last ones, and saves the customer and their consent. Website orders are "held" awaiting a bank transfer, with no time limit for now (max 12 diners per order).
   - `lib/routes.tsx`: shared code behind the English and French page files in `app/`.
 - `components/pin-gate.tsx`, `app/manager/`: the PIN screen and the console shell (add new console sections to its `TABS` list). Console header and tabs are hidden when printing (`print:hidden`).
+- Console → Events (issue #7): `components/manager/events-tab.tsx` (list and editor), `lib/manager-events.ts` (reads/saves events with menu and collection points in one all-or-nothing save; includes drafts and addresses, so PIN-only), `lib/event-editing.ts` (shapes shared with the browser, and the list of photos to choose from), API at `app/api/manager/events`. New and duplicated evenings start as drafts. Dishes and collection points already ordered can't be removed; capacity can't go below places taken. Test or real is fixed at creation; only test evenings (with their orders) can be deleted.
 - `app/api/verify-pin`: checks the PIN.
 - `v0_memories/`: v0's leftover reference copies from the old app. Not used; ignore.
 
@@ -80,6 +81,16 @@ Fine dining, calm and elegant. Taken from Eleanor's own files in `public/`:
 ## Environment variables (set in Vercel)
 
 `MANAGER_PIN` (needed now), `DATABASE_URL` (for features that use the database). Pull them with `vercel env pull`; never commit them.
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->
+
+<!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know
 
