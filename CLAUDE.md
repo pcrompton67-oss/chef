@@ -8,9 +8,9 @@
 - Finishing a ticket: commit ending `Closes #N`, push, comment a 3–5 line summary on the issue. Leftovers become new issues.
 - Full rules: `CLAUDE.md` in my private repo `pcrompton67-oss/claude-settings`.
 
-## Status: not live yet
+## Status: connected to Vercel
 
-The site is being rebuilt and is not yet public. Still work on a branch and get Paul's OK before merging to `main`; once it is connected to Vercel, merging to `main` will publish it.
+The site is deployed on Vercel from `main`: **merging to `main` publishes it straight away**. Always work on a branch and get Paul's OK before merging. It is not launched to the public yet (see the go-live checklist, issue #15).
 
 ## What it is
 
