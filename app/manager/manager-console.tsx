@@ -7,6 +7,7 @@ import { getStoredPin } from '@/components/pin-gate'
 import { cn } from '@/lib/utils'
 import { EventsTab } from '@/components/manager/events-tab'
 import { OrdersTab } from '@/components/manager/orders-tab'
+import { PrintoutsTab } from '@/components/manager/printouts-tab'
 
 // Helpers for console sections that talk to the API: every request carries
 // the verified PIN in the `x-pin` header (checked in lib/pins.ts).
@@ -34,6 +35,7 @@ export async function send(url: string, method: string, body?: unknown) {
 const TABS = [
   { id: 'overview', label: 'Overview' },
   { id: 'orders', label: 'Orders' },
+  { id: 'printouts', label: 'Printouts' },
   { id: 'events', label: 'Events' },
 ] as const
 type Tab = (typeof TABS)[number]['id']
@@ -42,7 +44,7 @@ export function ManagerConsole() {
   const [tab, setTab] = useState<Tab>('overview')
 
   return (
-    <div className="min-h-dvh bg-background pb-16">
+    <div className="min-h-dvh bg-background pb-16 print:min-h-0 print:bg-white print:pb-0">
       {/* Header and tabs are left off printouts. */}
       <header className="border-b border-border bg-ivory print:hidden">
         <div className="mx-auto flex max-w-3xl items-center gap-4 px-4 py-4">
@@ -96,9 +98,10 @@ export function ManagerConsole() {
         </nav>
       </div>
 
-      <main className="mx-auto max-w-3xl px-4 py-8">
+      <main className="mx-auto max-w-3xl px-4 py-8 print:max-w-none print:p-0">
         {tab === 'overview' ? <Overview /> : null}
         {tab === 'orders' ? <OrdersTab /> : null}
+        {tab === 'printouts' ? <PrintoutsTab /> : null}
         {tab === 'events' ? <EventsTab /> : null}
       </main>
     </div>
@@ -112,7 +115,7 @@ function Overview() {
       <span className="rule my-5" aria-hidden />
       <p className="mx-auto max-w-md leading-relaxed text-stone">
         Use Orders for the day-to-day bookings and Events to set up your Dine at
-        Home evenings. Printouts will appear here as they are built.
+        Home evenings, and Printouts for the prep list, run sheet and box labels.
       </p>
     </div>
   )
