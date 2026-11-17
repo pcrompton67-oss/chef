@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { t } from '@/lib/content'
 import { formatMoney, formatTime, localePath, type Locale } from '@/lib/i18n'
@@ -17,6 +17,8 @@ type Props = {
   locale: Locale
   /** Most diners this order can be for (places left, capped per order). */
   maxDiners: number
+  /** Offer paying the deposit by card on Stripe (issue #14). Bank transfer only when false. */
+  cardPayments: boolean
 }
 
 type Field =
@@ -35,7 +37,7 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
  * a dish for each diner on the choice courses, then contact details.
  * The server checks everything again when the order is sent.
  */
-export function OrderForm({ event, locale, maxDiners }: Props) {
+export function OrderForm({ event, locale, maxDiners, cardPayments }: Props) {
   const c = t(locale).order
   const router = useRouter()
   const choiceCourses = event.courses.filter((course) => course.kind === 'choice')
@@ -49,9 +51,22 @@ export function OrderForm({ event, locale, maxDiners }: Props) {
   const [allergies, setAllergies] = useState('')
   const [marketing, setMarketing] = useState(false)
   const [agreed, setAgreed] = useState(false)
+  const [payment, setPayment] = useState<'card' | 'bank_transfer'>(cardPayments ? 'card' : 'bank_transfer')
+  const byCard = cardPayments && payment === 'card'
+
   const [errors, setErrors] = useState<Partial<Record<Field, string>>>({})
   const [formError, setFormError] = useState('')
   const [sending, setSending] = useState(false)
+
+  // Coming back from Stripe's page with the browser's Back button can show
+  // this page as it was left ("Opening…"): make the button usable again.
+  useEffect(() => {
+    const reset = (e: PageTransitionEvent) => {
+      if (e.persisted) setSending(false)
+    }
+    window.addEventListener('pageshow', reset)
+    return () => window.removeEventListener('pageshow', reset)
+  }, [])
 
   const chosen = (courseId: string) =>
     choiceCourses
@@ -111,14 +126,21 @@ export function OrderForm({ event, locale, maxDiners }: Props) {
           allergies,
           marketing,
           agreed,
+          paymentMethod: byCard ? 'card' : 'bank_transfer',
         }),
       })
       const result = (await res.json().catch(() => ({}))) as {
         ok?: boolean
         orderId?: string
+        checkoutUrl?: string
         error?: string
         field?: Field | 'diners'
         placesLeft?: number
+      }
+      if (result.ok && result.checkoutUrl) {
+        // Card: on to Stripe's payment page (the button stays "opening…" meanwhile).
+        window.location.assign(result.checkoutUrl)
+        return
       }
       if (result.ok && result.orderId) {
         router.push(
@@ -127,6 +149,7 @@ export function OrderForm({ event, locale, maxDiners }: Props) {
         return
       }
       if (result.error === 'closed') setFormError(c.errors.closed)
+      else if (result.error === 'payment') setFormError(c.errors.payment)
       else if (result.error === 'not_enough') setFormError(c.errors.notEnough(result.placesLeft ?? 0))
       else if (result.error === 'choices') {
         setErrors({ choices: c.errors.choices })
@@ -316,9 +339,44 @@ export function OrderForm({ event, locale, maxDiners }: Props) {
             {money((event.priceCents - event.depositCents) * diners)}
           </Row>
         </dl>
-        <p className="mt-6 text-center font-display text-base italic leading-relaxed text-stone">
-          {c.paymentNote}
-        </p>
+        {cardPayments ? (
+          <fieldset className="mt-8">
+            <legend className="caps mb-4 w-full text-center text-[0.65rem] text-stone">{c.paymentLabel}</legend>
+            <div className="space-y-2">
+              {(
+                [
+                  ['card', c.payCard, c.payCardNote],
+                  ['bank_transfer', c.payTransfer, c.payTransferNote],
+                ] as const
+              ).map(([value, label, note]) => (
+                <label
+                  key={value}
+                  className={cn(
+                    'flex cursor-pointer gap-3 border px-4 py-3 transition-colors duration-300',
+                    payment === value ? 'border-gold bg-ivory' : 'border-stone/30 hover:border-stone/60',
+                  )}
+                >
+                  <input
+                    type="radio"
+                    name="payment"
+                    value={value}
+                    checked={payment === value}
+                    onChange={() => setPayment(value)}
+                    className="tick mt-1"
+                  />
+                  <span>
+                    <span className="block font-display text-lg text-charcoal">{label}</span>
+                    <span className="block text-sm leading-relaxed text-stone">{note}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        ) : (
+          <p className="mt-6 text-center font-display text-base italic leading-relaxed text-stone">
+            {c.paymentNote}
+          </p>
+        )}
       </div>
 
       <div className="space-y-5">
@@ -361,7 +419,7 @@ export function OrderForm({ event, locale, maxDiners }: Props) {
           disabled={sending}
           className={buttonStyles('solid', 'w-full py-4 sm:w-auto sm:px-12')}
         >
-          {sending ? c.submitting : c.submit}
+          {byCard ? (sending ? c.submittingCard : c.submitCard) : sending ? c.submitting : c.submit}
         </button>
         {formError ? (
           <p role="alert" className="mt-5 text-sm leading-relaxed text-destructive">

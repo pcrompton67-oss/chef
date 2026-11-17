@@ -30,7 +30,9 @@ export type TastingMenu = {
 
 /** One legal page (issue #11). In the text, {legalName} etc. are filled from
  * BUSINESS in lib/site.ts, {link:privacy} etc. link to another legal page,
- * {holdDays} and {maxDiners} come from the settings, and [[…]] marks wording
+ * {holdDays} and {maxDiners} come from the settings; a paragraph or list item
+ * starting {ifCard} shows only when card payments are on (Stripe set up,
+ * issue #14), one starting {ifNoCard} only when they're off; and [[…]] marks wording
  * Eleanor still has to supply (shown highlighted). */
 export type LegalPage = {
   metaTitle: string
@@ -156,6 +158,14 @@ const en = {
     balance: 'Balance on collection',
     times: (amount: string, n: number) => `${amount} × ${n}`,
     paymentNote: 'I’ll send you the details for paying the deposit by bank transfer.',
+    // Card deposits (issue #14): only shown when Stripe is set up.
+    paymentLabel: 'How would you like to pay the deposit?',
+    payCard: 'By card',
+    payCardNote: 'Now, on Stripe’s secure payment page. Your booking is confirmed straight away.',
+    payTransfer: 'By bank transfer',
+    payTransferNote: 'I’ll send you the bank details. Your booking is confirmed when the transfer arrives.',
+    submitCard: 'Pay the deposit',
+    submittingCard: 'Opening the payment page…',
     submit: 'Reserve my places',
     submitting: 'Reserving…',
     errors: {
@@ -174,6 +184,7 @@ const en = {
             ? 'Sorry, only one place is left now.'
             : `Sorry, only ${n} places are left now.`,
       generic: 'Sorry, something went wrong. Please try again in a moment.',
+      payment: 'Sorry, the card payment couldn’t be started. Please try again, or choose bank transfer.',
     },
   },
   thanks: {
@@ -186,6 +197,23 @@ const en = {
     reference: (ref: string) => `Order no. ${ref}`,
     // The bank details box uses the "request received" email's wording (email.received).
     back: 'Back to the evening',
+    // After a card order (issue #14).
+    card: {
+      paid: [
+        'Thank you, your deposit has been paid and your booking is confirmed.',
+        'I’ve sent you a confirmation email with the address where you collect your meal. The balance is paid on collection.',
+      ],
+      pending: [
+        'Thank you. Your card payment is being confirmed.',
+        'You’ll receive your confirmation email in a few minutes. If it doesn’t arrive, please get in touch.',
+      ],
+      unpaidEyebrow: 'Payment not completed',
+      unpaidTitle: 'Your places aren’t reserved',
+      unpaid: [
+        'Your card payment wasn’t completed, so no money was taken and your places weren’t kept.',
+        'You can order again from the evening’s page whenever you like.',
+      ],
+    },
   },
   notify: {
     title: 'Tell me about the next one',
@@ -425,6 +453,7 @@ const en = {
                 'Vercel Inc. (United States): hosts this website.',
                 'Neon Inc. (United States): stores orders and customer details, on servers in Frankfurt, Germany.',
                 'Resend Inc. (United States): sends my emails.',
+                '{ifCard}Stripe Payments Europe Ltd (Ireland): takes card payments. I never see your card details.',
               ],
               'Each of them has a data processing agreement that includes the European Commission’s standard contractual clauses, and each takes part in the EU–US Data Privacy Framework, so your details are protected to European standards wherever they are handled.',
             ],
@@ -529,7 +558,10 @@ const en = {
           {
             heading: 'Paying',
             body: [
-              'A deposit per person, shown on each evening’s page, is paid when you order, by bank transfer. Please pay it within {holdDays} days, quoting the reference I give you. If it hasn’t arrived by then, I may cancel your order and release your places.',
+              '{ifNoCard}A deposit per person, shown on each evening’s page, is paid when you order, by bank transfer. Please pay it within {holdDays} days, quoting the reference I give you. If it hasn’t arrived by then, I may cancel your order and release your places.',
+              '{ifCard}A deposit per person, shown on each evening’s page, is paid when you order, by card or by bank transfer.',
+              '{ifCard}By card, you pay on Stripe’s secure payment page and your booking is confirmed straight away. Your places are held for 30 minutes while you pay; if the payment isn’t completed, they are released.',
+              '{ifCard}By bank transfer, please pay within {holdDays} days, quoting the reference I give you. If it hasn’t arrived by then, I may cancel your order and release your places.',
               'The balance is paid when you collect, by cash or cheque.',
             ],
           },
@@ -690,6 +722,13 @@ const fr: Content = {
     balance: 'Solde à la récupération',
     times: (amount: string, n: number) => `${amount} × ${n}`,
     paymentNote: 'Je vous enverrai les coordonnées pour régler l’acompte par virement.',
+    paymentLabel: 'Comment souhaitez-vous régler l’acompte ?',
+    payCard: 'Par carte',
+    payCardNote: 'Maintenant, sur la page de paiement sécurisée de Stripe. Votre réservation est confirmée aussitôt.',
+    payTransfer: 'Par virement',
+    payTransferNote: 'Je vous envoie les coordonnées bancaires. Votre réservation est confirmée à réception du virement.',
+    submitCard: 'Régler l’acompte',
+    submittingCard: 'Ouverture du paiement…',
     submit: 'Réserver mes places',
     submitting: 'Réservation…',
     errors: {
@@ -708,6 +747,7 @@ const fr: Content = {
             ? 'Désolée, il ne reste plus qu’une place.'
             : `Désolée, il ne reste plus que ${n} places.`,
       generic: 'Désolée, un problème est survenu. Merci de réessayer dans un instant.',
+      payment: 'Désolée, le paiement par carte n’a pas pu démarrer. Merci de réessayer, ou de choisir le virement.',
     },
   },
   thanks: {
@@ -719,6 +759,22 @@ const fr: Content = {
     ],
     reference: (ref: string) => `Commande n° ${ref}`,
     back: 'Retour à la soirée',
+    card: {
+      paid: [
+        'Merci, votre acompte est réglé et votre réservation est confirmée.',
+        'Je vous ai envoyé un e-mail de confirmation avec l’adresse où récupérer votre repas. Le solde est réglé à la récupération.',
+      ],
+      pending: [
+        'Merci. Votre paiement par carte est en cours de confirmation.',
+        'Vous recevrez votre e-mail de confirmation d’ici quelques minutes. S’il n’arrive pas, n’hésitez pas à me contacter.',
+      ],
+      unpaidEyebrow: 'Paiement non abouti',
+      unpaidTitle: 'Vos places ne sont pas réservées',
+      unpaid: [
+        'Votre paiement par carte n’a pas abouti : aucun montant n’a été débité et vos places n’ont pas été gardées.',
+        'Vous pouvez commander à nouveau depuis la page de la soirée quand vous le souhaitez.',
+      ],
+    },
   },
   notify: {
     title: 'Prévenez-moi de la prochaine',
@@ -952,6 +1008,7 @@ const fr: Content = {
                 'Vercel Inc. (États-Unis) : hébergement de ce site.',
                 'Neon Inc. (États-Unis) : stockage des commandes et des données clients, sur des serveurs situés à Francfort (Allemagne).',
                 'Resend Inc. (États-Unis) : envoi de mes e-mails.',
+                '{ifCard}Stripe Payments Europe Ltd (Irlande) : paiements par carte. Je ne vois jamais les données de votre carte.',
               ],
               'Chacune de ces sociétés est liée par un accord de traitement des données comprenant les clauses contractuelles types de la Commission européenne, et chacune adhère au cadre de protection des données UE–États-Unis : vos données sont ainsi protégées selon les normes européennes, où qu’elles soient traitées.',
             ],
@@ -1056,7 +1113,10 @@ const fr: Content = {
           {
             heading: 'Paiement',
             body: [
-              'Un acompte par personne, indiqué sur la page de chaque soirée, est réglé à la commande par virement bancaire. Merci de le régler sous {holdDays} jours, en indiquant la référence que je vous donne. Passé ce délai, je peux annuler votre commande et libérer vos places.',
+              '{ifNoCard}Un acompte par personne, indiqué sur la page de chaque soirée, est réglé à la commande par virement bancaire. Merci de le régler sous {holdDays} jours, en indiquant la référence que je vous donne. Passé ce délai, je peux annuler votre commande et libérer vos places.',
+              '{ifCard}Un acompte par personne, indiqué sur la page de chaque soirée, est réglé à la commande, par carte ou par virement bancaire.',
+              '{ifCard}Par carte, vous réglez sur la page de paiement sécurisée de Stripe et votre réservation est confirmée aussitôt. Vos places sont gardées 30 minutes pendant le paiement ; si celui-ci n’aboutit pas, elles sont libérées.',
+              '{ifCard}Par virement, merci de régler sous {holdDays} jours, en indiquant la référence que je vous donne. Passé ce délai, je peux annuler votre commande et libérer vos places.',
               'Le solde est réglé à la récupération, en espèces ou par chèque.',
             ],
           },

@@ -267,7 +267,7 @@ function ownerCopy(o: EmailOrder, bank: BankDetails): RenderedEmail {
     ['Allergies', o.allergies.trim() || '—'],
     ...(o.notes.trim() ? [['Notes', o.notes.trim()] as [string, string]] : []),
     ['Total', money(o.totalCents)],
-    ['Deposit', `${money(o.depositCents)}${o.depositPaid ? ' (paid)' : ' (not paid yet)'}`],
+    ['Deposit', `${money(o.depositCents)}${o.depositPaid ? (o.paymentMethod === 'card' ? ' (paid by card)' : ' (paid)') : ' (not paid yet)'}`],
     ['Balance', money(o.balanceCents)],
     ...(o.paymentMethod === 'bank_transfer' && !o.depositPaid && o.depositCents > 0
       ? [['Transfer reference', transferReference(o.id)] as [string, string]]

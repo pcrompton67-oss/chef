@@ -14,43 +14,48 @@ export function ThankYouPage({
   locale,
   path,
   reference,
+  card,
   transfer,
 }: {
   event: EventDetail
   locale: Locale
   path: string
   reference: string | null
+  /** A card order (issue #14): paid, still being confirmed, or not paid. Null otherwise. */
+  card: 'paid' | 'pending' | 'unpaid' | null
   /** The deposit still to pay by bank transfer on this order, with where to pay it. */
   transfer: { depositCents: number; holdDays: number; bank: BankDetails } | null
 }) {
   const c = t(locale).thanks
+  const unpaid = card === 'unpaid'
+  const text = card ? c.card[card] : c.text
   return (
     <div lang={locale} className="flex min-h-dvh flex-col">
       <SiteHeader locale={locale} path={path} />
       <main className="flex-1 px-4 py-24 text-center sm:px-8 sm:py-32">
         <FadeIn>
-          <p className="caps text-gold-deep">{c.eyebrow}</p>
+          <p className="caps text-gold-deep">{unpaid ? c.card.unpaidEyebrow : c.eyebrow}</p>
           <h1 className="mt-5 text-4xl uppercase tracking-[0.14em] text-charcoal sm:text-5xl">
-            {c.title}
+            {unpaid ? c.card.unpaidTitle : c.title}
           </h1>
           <p className="mt-6 font-display text-xl italic text-stone">
             {e.theme} · {formatDate(e.date, locale)}
           </p>
-          {reference ? (
+          {reference && !unpaid ? (
             <p className="mt-3 text-sm tracking-[0.12em] text-stone">{c.reference(reference)}</p>
           ) : null}
         </FadeIn>
         <FadeIn delay={250}>
           <span className="rule my-10" aria-hidden />
           <div className="mx-auto max-w-md space-y-5 font-display text-xl leading-relaxed text-charcoal">
-            {c.text.map((p, i) => (
+            {text.map((p, i) => (
               <p key={i}>{p}</p>
             ))}
           </div>
           {transfer && reference ? <TransferDetails locale={locale} reference={reference} {...transfer} /> : null}
           <Link
             href={localePath(`/dine-at-home/${e.slug}`, locale)}
-            className={buttonStyles('outline', 'mt-12')}
+            className={buttonStyles(unpaid ? 'solid' : 'outline', 'mt-12')}
           >
             {c.back}
           </Link>

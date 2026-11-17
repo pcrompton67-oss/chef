@@ -26,10 +26,13 @@ export function EventPage({
   event: e,
   locale,
   path,
+  cardPayments,
 }: {
   event: EventDetail
   locale: Locale
   path: string
+  /** Whether the order form offers paying the deposit by card (Stripe set up, issue #14). */
+  cardPayments: boolean
 }) {
   const c = t(locale).event
   const price = formatMoney(e.priceCents, locale)
@@ -197,6 +200,7 @@ export function EventPage({
               event={e}
               locale={locale}
               maxDiners={Math.min(MAX_DINERS, e.placesLeft)}
+              cardPayments={cardPayments && e.depositCents > 0}
             />
           )}
         </Section>

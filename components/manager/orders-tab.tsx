@@ -305,7 +305,14 @@ function OrderDetail({
       </dl>
 
       <div className="space-y-4">
-        {o.status === 'held' || o.status === 'awaiting_transfer' ? (
+        {o.payingByCard ? (
+          <p className="text-sm text-stone">
+            {o.name} is paying the deposit by card on Stripe’s page. The order confirms itself when they’ve paid;
+            if they don’t, it expires within 30 minutes and the places are freed.
+          </p>
+        ) : null}
+
+        {(o.status === 'held' || o.status === 'awaiting_transfer') && !o.payingByCard ? (
           <div className="flex flex-wrap items-center gap-3">
             <input
               aria-label="Payment reference (optional)"
@@ -330,7 +337,7 @@ function OrderDetail({
           </div>
         ) : null}
 
-        {active && !o.collected ? (
+        {active && !o.collected && !o.payingByCard ? (
           <div className="flex flex-wrap items-center gap-3">
             <span className="basis-full text-sm text-charcoal">
               Collected &amp; {o.depositPaid ? `balance ${money(o.balanceCents)}` : `all ${money(o.totalCents)}`} paid by
@@ -372,14 +379,36 @@ function OrderDetail({
               Undo “collected”
             </button>
           ) : null}
-          {o.refundStatus === 'requested' || o.refundStatus === 'partial' ? (
+          {o.cardRefundable ? (
             <button
               type="button"
               className={buttonStyles('solid', 'px-5 py-2')}
               disabled={busy}
-              onClick={() => act({ action: 'refund_sent' }, `Mark the refund of ${money(o.refundCents)} to ${o.name} as sent?`)}
+              onClick={() =>
+                act(
+                  { action: 'refund_card' },
+                  `Refund ${money(Math.min(o.refundCents, o.depositCents))} to ${o.name}’s card through Stripe? This can’t be undone.`,
+                )
+              }
             >
-              Refund sent
+              Refund {money(Math.min(o.refundCents, o.depositCents))} by card
+            </button>
+          ) : null}
+          {o.refundStatus === 'requested' || o.refundStatus === 'partial' ? (
+            <button
+              type="button"
+              className={buttonStyles(o.cardRefundable ? 'text' : 'solid', o.cardRefundable ? '' : 'px-5 py-2')}
+              disabled={busy}
+              onClick={() =>
+                act(
+                  { action: 'refund_sent' },
+                  o.cardRefundable
+                    ? `Mark the refund of ${money(o.refundCents)} to ${o.name} as sent, without refunding through Stripe (e.g. you already refunded it in Stripe yourself)?`
+                    : `Mark the refund of ${money(o.refundCents)} to ${o.name} as sent?`,
+                )
+              }
+            >
+              {o.cardRefundable ? 'Already refunded: mark as sent' : 'Refund sent'}
             </button>
           ) : null}
           {active && !o.overdue ? (
@@ -391,7 +420,11 @@ function OrderDetail({
                 act(
                   { action: 'cancel' },
                   `Cancel ${o.name}’s order for ${o.diners}? Their places will be freed.` +
-                    (o.depositPaid && o.depositCents > 0 ? ` It will be marked “refund to send”.` : ''),
+                    (o.depositPaid && o.depositCents > 0
+                      ? o.paymentMethod === 'card' && o.source === 'website'
+                        ? ` It will be marked “refund to send”, and you can then refund the card through Stripe.`
+                        : ` It will be marked “refund to send”.`
+                      : ''),
                 )
               }
             >
@@ -691,6 +724,7 @@ function statusOf(o: ConsoleOrder): [string, 'good' | 'alert' | 'muted' | 'plain
   if (o.collected) return ['Collected', 'muted']
   if (o.depositPaid) return ['Deposit paid', 'good']
   if (o.overdue) return ['Deposit overdue', 'alert']
+  if (o.payingByCard) return ['Paying by card…', 'plain']
   return ['Waiting for deposit', 'plain']
 }
 

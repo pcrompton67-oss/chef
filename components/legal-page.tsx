@@ -8,13 +8,20 @@ import { SiteFooter } from '@/components/site/site-footer'
 import { FadeIn } from '@/components/site/fade-in'
 
 /** Numbers the wording can mention, read from the settings when the page is shown. */
-export type LegalValues = { holdDays: number; maxDiners: number }
+export type LegalValues = { holdDays: number; maxDiners: number; cardPayments: boolean }
+
+/** Wording marked {ifCard} shows only with card payments on, {ifNoCard} only with them off. */
+function shown(text: string, values: LegalValues): boolean {
+  if (text.startsWith('{ifCard}')) return values.cardPayments
+  if (text.startsWith('{ifNoCard}')) return !values.cardPayments
+  return true
+}
 
 /** One legal page (issue #11): mentions légales, privacy, allergens or booking terms. */
 export function LegalPage({ locale, page, values }: { locale: Locale; page: LegalPageKey; values: LegalValues }) {
   const c = t(locale).legal
   const p = c.pages[page]
-  const fill = (text: string) => fillText(text, locale, values)
+  const fill = (text: string) => fillText(text.replace(/^\{if(No)?Card\}/, ''), locale, values)
   return (
     <div lang={locale} className="flex min-h-dvh flex-col">
       <SiteHeader locale={locale} path={LEGAL_PATHS[page]} />
@@ -34,10 +41,12 @@ export function LegalPage({ locale, page, values }: { locale: Locale; page: Lega
             <section key={s.heading} className="mt-12">
               <h2 className="caps mb-5 text-center text-gold-deep">{s.heading}</h2>
               <div className="space-y-4">
-                {s.body.map((item, i) =>
+                {s.body
+                  .filter((item) => Array.isArray(item) || shown(item, values))
+                  .map((item, i) =>
                   Array.isArray(item) ? (
                     <ul key={i} className="space-y-2 border-l border-gold/50 pl-5">
-                      {item.map((li, j) => (
+                      {item.filter((li) => shown(li, values)).map((li, j) => (
                         <li key={j}>{fill(li)}</li>
                       ))}
                     </ul>

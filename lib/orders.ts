@@ -1,6 +1,7 @@
 import { query, transaction } from '@/lib/db'
 import { getEvent } from '@/lib/events'
 import type { Locale } from '@/lib/i18n'
+import { CARD_HOLD_MINUTES, cardPaymentsReady, type CheckoutOrder } from '@/lib/stripe'
 
 /**
  * Placing a Dine at Home order from the website.
@@ -10,9 +11,13 @@ import type { Locale } from '@/lib/i18n'
  * last places at the same moment are handled one after the other: the second
  * one sees the first one's order and is refused if there's no room left.
  *
- * A website order waits for a bank transfer and keeps its places until
- * Eleanor confirms or releases it. Places are never freed automatically: after
- * the days set in Console → Settings it is only flagged "overdue" (issue #6).
+ * A bank-transfer order keeps its places until Eleanor confirms or releases
+ * it. Those places are never freed automatically: after the days set in
+ * Console → Settings it is only flagged "overdue" (issue #6).
+ *
+ * A card order (issue #14, only when Stripe is set up) holds its places for
+ * CARD_HOLD_MINUTES while the customer pays on Stripe's page; lib/stripe.ts
+ * confirms it when paid, and otherwise the hold simply runs out.
  */
 
 /** Most diners one website order can be for. */
@@ -31,10 +36,16 @@ export type OrderInput = {
   allergies: string
   marketing: boolean
   agreed: boolean
+  paymentMethod: 'card' | 'bank_transfer'
 }
 
 export type OrderResult =
-  | { ok: true; orderId: string }
+  | {
+      ok: true
+      orderId: string
+      /** For a card order: what Stripe's payment page needs. */
+      checkout: CheckoutOrder | null
+    }
   | {
       ok: false
       /**
@@ -72,11 +83,12 @@ export function parseOrderInput(body: Record<string, unknown>): OrderInput {
     allergies: clean(body.allergies, 1000),
     marketing: body.marketing === true,
     agreed: body.agreed === true,
+    paymentMethod: body.paymentMethod === 'card' ? 'card' : 'bank_transfer',
   }
 }
 
 export async function placeOrder(input: OrderInput): Promise<OrderResult> {
-  const event = await getEvent(input.slug)
+  const event = await getEvent(input.slug, input.locale)
   if (!event) return { ok: false, error: 'not_found' }
   if (event.availability === 'closed' || event.availability === 'past') {
     return { ok: false, error: 'closed' }
@@ -97,6 +109,11 @@ export async function placeOrder(input: OrderInput): Promise<OrderResult> {
   if (!EMAIL.test(input.email)) return { ok: false, error: 'invalid', field: 'email' }
   if (!input.allergies) return { ok: false, error: 'invalid', field: 'allergies' }
   if (!input.agreed) return { ok: false, error: 'invalid', field: 'agreed' }
+  // Card only when Stripe is set up and there is a deposit to pay.
+  const card = input.paymentMethod === 'card'
+  if (card && (!cardPaymentsReady() || event.depositCents <= 0)) {
+    return { ok: false, error: 'invalid', field: 'paymentMethod' }
+  }
 
   // Each choice course: the counts must be whole numbers adding up to the diners,
   // and only this event's options may be used.
@@ -138,6 +155,8 @@ export async function placeOrder(input: OrderInput): Promise<OrderResult> {
       input.marketing,
       optionIds,
       quantities,
+      card ? 'card' : 'bank_transfer',
+      card ? CARD_HOLD_MINUTES : null,
     ] },
   ])
 
@@ -148,13 +167,31 @@ export async function placeOrder(input: OrderInput): Promise<OrderResult> {
     places_left: number
     order_id: string | null
   }
-  if (r.order_id) return { ok: true, orderId: r.order_id }
+  if (r.order_id) {
+    return {
+      ok: true,
+      orderId: r.order_id,
+      checkout: card
+        ? {
+            id: r.order_id,
+            slug: event.slug,
+            eventTitle: event.theme,
+            eventDate: event.date,
+            diners,
+            depositCents: event.depositCents,
+            email: input.email,
+            locale: input.locale,
+          }
+        : null,
+    }
+  }
   if (r.status !== 'open' || r.cutoff_passed || r.is_past) return { ok: false, error: 'closed' }
   return { ok: false, error: 'not_enough', placesLeft: r.places_left }
 }
 
 // $1 event slug · $2 diners · $3 collection point · $4 name · $5 mobile · $6 email
 // $7 allergies · $8 language · $9 marketing consent · $10 option ids · $11 quantities
+// $12 payment method · $13 minutes the places are held (card), or null (bank transfer: until Eleanor acts)
 const PLACE_ORDER_SQL = `
 WITH ev AS (
   SELECT e.id, e.status, e.is_test, e.price_cents, e.deposit_cents,
@@ -195,11 +232,12 @@ cust AS (
 ord AS (
   INSERT INTO orders (event_id, collection_point_id, customer_id, diners, name, mobile, email,
                       allergies, language, source, payment_method, status,
-                      total_cents, deposit_cents, balance_cents, is_test)
+                      total_cents, deposit_cents, balance_cents, hold_expires_at, is_test)
   SELECT ok.id, $3::bigint, cust.id, $2::int, $4::text, $5::text, $6::text,
-         $7::text, $8::text, 'website', 'bank_transfer', 'held',
+         $7::text, $8::text, 'website', $12::text, 'held',
          ok.price_cents * $2::int, ok.deposit_cents * $2::int,
-         (ok.price_cents - ok.deposit_cents) * $2::int, ok.is_test
+         (ok.price_cents - ok.deposit_cents) * $2::int,
+         now() + make_interval(mins => $13::int), ok.is_test
     FROM ok, cust
   RETURNING id
 ),
@@ -211,6 +249,39 @@ lines AS (
 SELECT ev.status, ev.cutoff_passed, ev.is_past, ev.places_left,
        (SELECT id::text FROM ord) AS order_id
   FROM ev`
+
+/** A card order whose payment page couldn't be opened: it expires straight away, freeing its places. */
+export async function abandonCardOrder(orderId: string): Promise<void> {
+  await query(
+    `UPDATE orders SET status = 'expired', updated_at = now()
+      WHERE id = $1 AND payment_method = 'card' AND status = 'held' AND deposit_paid_at IS NULL`,
+    [orderId],
+  )
+}
+
+/**
+ * For the thank-you page after a card order: is it paid ('paid'), still
+ * waiting for Stripe ('pending'), or did the payment not go through
+ * ('unpaid': the payment page was left or ran out)? Null if this isn't a
+ * website card order for this evening.
+ */
+export async function cardOrderState(
+  eventSlug: string,
+  orderId: string,
+): Promise<'paid' | 'pending' | 'unpaid' | null> {
+  if (!/^\d{1,10}$/.test(orderId)) return null
+  const [row] = await query<{ status: string; paid: boolean; live: boolean }>(
+    `SELECT o.status, o.deposit_paid_at IS NOT NULL AS paid,
+            (o.hold_expires_at IS NULL OR o.hold_expires_at > now()) AS live
+       FROM orders o JOIN events e ON e.id = o.event_id
+      WHERE o.id = $1 AND e.slug = $2 AND o.payment_method = 'card' AND o.source = 'website'`,
+    [orderId, eventSlug],
+  )
+  if (!row) return null
+  if (row.paid && row.status === 'confirmed') return 'paid'
+  if (row.status === 'held' && row.live) return 'pending'
+  return 'unpaid'
+}
 
 /**
  * For the thank-you page: the deposit still to be paid by bank transfer on

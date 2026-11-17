@@ -26,6 +26,10 @@ export type ConsoleOrder = {
   takesPlaces: boolean
   /** A bank-transfer deposit not paid within the days set in Settings (places are still held). */
   overdue: boolean
+  /** A website card order whose customer is on Stripe's payment page right now (issue #14). */
+  payingByCard: boolean
+  /** A cancelled card order paid on the website: its refund can go back through Stripe. */
+  cardRefundable: boolean
   totalCents: number
   depositCents: number
   depositPaid: boolean
@@ -46,6 +50,7 @@ export type OrderAction =
   | { action: 'undo_collected' }
   | { action: 'cancel' }
   | { action: 'refund_sent' }
+  | { action: 'refund_card' }
 
 export type ManualOrderInput = {
   eventId: string

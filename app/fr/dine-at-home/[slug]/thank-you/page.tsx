@@ -1,14 +1,15 @@
-import { renderThankYou, thankYouMetadata } from '@/lib/routes'
+import { renderThankYou, thankYouMetadata, type ThankYouQuery } from '@/lib/routes'
 
 type Props = {
   params: Promise<{ slug: string }>
-  searchParams: Promise<{ ref?: string | string[] }>
+  searchParams: Promise<ThankYouQuery>
 }
 
-export const metadata = thankYouMetadata('fr')
+export async function generateMetadata(props: Props) {
+  return thankYouMetadata('fr', await props.searchParams)
+}
 
 export default async function Page(props: Props) {
   const { slug } = await props.params
-  const { ref } = await props.searchParams
-  return renderThankYou('fr', slug, ref)
+  return renderThankYou('fr', slug, await props.searchParams)
 }

@@ -224,6 +224,22 @@ export function emailNewWebsiteOrder(orderId: string) {
   })
 }
 
+/**
+ * A website card order has just been paid (issue #14): the confirmation (with
+ * the address) to the customer, and Eleanor's copy. Called once per order,
+ * by whichever of the Stripe webhook or the thank-you page confirmed it.
+ */
+export function emailCardOrderPaid(orderId: string) {
+  return safely('card order paid', async () => {
+    const o = await loadOrder(orderId)
+    if (!o || o.status !== 'confirmed') return
+    const settings = await getEmailSettings()
+    if (o.email) await send('confirmed', o.email, o, settings)
+    const own = o.language === 'fr' ? await loadOrder(orderId, true) : o
+    if (own) await send('owner', OWNER_EMAIL, own, settings)
+  })
+}
+
 /** An order Eleanor added herself: the customer gets the email that fits its state. */
 export function emailNewManualOrder(orderId: string) {
   return safely('manual order', async () => {

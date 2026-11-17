@@ -16,6 +16,13 @@ const TAKES_PLACES = `(o.status = 'confirmed'
 export async function listOrders(eventId: string): Promise<ConsoleOrder[] | null> {
   if (!/^\d+$/.test(eventId)) return null
   const { holdDays } = await getBusinessSettings()
+  // Card orders whose payment page ran out unpaid show as expired (their places are already free).
+  await query(
+    `UPDATE orders SET status = 'expired', updated_at = now()
+      WHERE event_id = $1 AND payment_method = 'card' AND source = 'website' AND status = 'held'
+        AND deposit_paid_at IS NULL AND hold_expires_at < now()`,
+    [eventId],
+  )
   return query<ConsoleOrder>(
     `SELECT o.id::text, to_char(o.created_at AT TIME ZONE 'Europe/Paris', 'YYYY-MM-DD"T"HH24:MI') AS "createdAt",
             o.name, o.mobile, o.email, o.diners,
@@ -28,6 +35,10 @@ export async function listOrders(eventId: string): Promise<ConsoleOrder[] | null
             (o.payment_method = 'bank_transfer' AND o.status IN ('held', 'awaiting_transfer')
               AND o.deposit_paid_at IS NULL AND o.deposit_cents > 0 AND o.collected_at IS NULL
               AND o.created_at < now() - make_interval(days => $2)) AS overdue,
+            (o.payment_method = 'card' AND o.source = 'website' AND o.status = 'held'
+              AND o.deposit_paid_at IS NULL AND o.hold_expires_at > now()) AS "payingByCard",
+            (o.payment_method = 'card' AND o.source = 'website' AND o.status = 'cancelled'
+              AND o.refund_status IN ('requested', 'partial') AND starts_with(o.payment_reference, 'pi_')) AS "cardRefundable",
             o.total_cents AS "totalCents", o.deposit_cents AS "depositCents",
             o.deposit_paid_at IS NOT NULL AS "depositPaid",
             o.balance_cents AS "balanceCents", o.balance_paid_at IS NOT NULL AS "balancePaid",
