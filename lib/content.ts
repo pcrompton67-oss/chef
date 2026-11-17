@@ -417,7 +417,7 @@ const en = {
               'Only I see your details. These companies store or send them on my behalf, and only for that purpose:',
               [
                 'Vercel Inc. (United States): hosts this website.',
-                'Neon Inc. (United States): stores orders and customer details, [[server location to be confirmed]].',
+                'Neon Inc. (United States): stores orders and customer details, on servers in Frankfurt, Germany.',
                 'Resend Inc. (United States): sends my emails.',
               ],
               'Where your details are handled outside the European Union, this is covered by safeguards recognised under European law, such as the EU–US Data Privacy Framework or the European Commission’s standard contractual clauses. [[To be checked for each company.]]',
@@ -938,7 +938,7 @@ const fr: Content = {
               'Je suis la seule à consulter vos données. Ces sociétés les stockent ou les envoient pour mon compte, uniquement à cette fin :',
               [
                 'Vercel Inc. (États-Unis) : hébergement de ce site.',
-                'Neon Inc. (États-Unis) : stockage des commandes et des données clients, [[localisation des serveurs à confirmer]].',
+                'Neon Inc. (États-Unis) : stockage des commandes et des données clients, sur des serveurs situés à Francfort (Allemagne).',
                 'Resend Inc. (États-Unis) : envoi de mes e-mails.',
               ],
               'Lorsque vos données sont traitées hors de l’Union européenne, ce transfert est encadré par des garanties reconnues par le droit européen, comme le cadre de protection des données UE–États-Unis ou les clauses contractuelles types de la Commission européenne. [[À vérifier pour chaque société.]]',
