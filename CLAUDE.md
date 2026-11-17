@@ -8,56 +8,50 @@
 - Finishing a ticket: commit ending `Closes #N`, push, comment a 3–5 line summary on the issue. Leftovers become new issues.
 - Full rules: `CLAUDE.md` in my private repo `pcrompton67-oss/claude-settings`.
 
-## This app is LIVE and takes real orders
+## Status: not live yet
 
-Pushing to `main` publishes straight to the live site via Vercel. Real customers order here and the owner runs his deliveries from it. Work on a branch and get Paul's OK before merging to `main`; never test against live customer data.
+The site is being rebuilt and is not yet public. Still work on a branch and get Paul's OK before merging to `main`; once it is connected to Vercel, merging to `main` will publish it.
 
 ## What it is
 
-Ordering site and management console for **Magnificent Sausage Rolls & Sausages**, a small fortnightly delivery business in Valence-en-Poitou (86), run by Bob. Paul built it (originally in v0) and hosts it for him.
+Website and management console for **Eleanor Jessica, cheffe privée** (a private chef). Paul builds and hosts it. It was started from a copy of Paul's sausage-rolls ordering app; all the sausage-specific code has been removed (issue #1). Customer-facing features (menus, bookings, etc.) are added through GitHub issues.
 
-- Live: `sausage-rolls.vercel.app`, domain `magnificentsausages.com` (DNS on Cloudflare).
-- Customers pick items from the current menu, choose a drop-off town, and order. No online payment: cash or cheque at the drop-off. Bob gets a new-order email alert.
-- Bob uses `/manager` (PIN-protected) to run each delivery.
+- On the site her name is always "Eleanor Jessica" with the strapline "cheffe privée". Never "Chef Eleanor".
+- Eleanor uses `/manager` (PIN-protected) to run things.
 
-It started as a copy of the Treat Stop bakery pre-order app (also Paul's), and features are sometimes ported between the two.
+## Look and feel
 
-## How a delivery works (the domain)
+Fine dining, calm and elegant. Taken from Eleanor's own files in `public/`:
 
-- **Menu** = one fortnight's delivery run. Only one is active. It has a Friday start (`sale_date`), Saturday end (`sale_date_end`), an order cutoff (`cutoff_at`) and an owner on/off switch (`orders_open`). Ordering is open only when the switch is on AND the cutoff hasn't passed.
-- **Drop-off towns** (`villages`): a fixed list, each with a drop-off time and a delivery day (Thursday–Sunday; Fri/Sat normal, Thu/Sun extra). Dates are worked out from the run's Fri/Sat.
-- **Products** (`products`) are the reusable catalogue; **menu items** (`menu_items`) are the products on this run's menu, with price, seasonal and sold-out flags.
-- **Orders** belong to a menu and a town. `source` records whether it came from the website or Bob took it by email/Messenger/phone/in person. Order lines can be ticked "allocated" once set aside.
-- **Sausage meat** is a special item: the customer also picks which sausage flavour it's made from (`flavour_item_id`).
-- **Customers** list with consent for reminder emails; unsubscribe page; data-use policy page (business details in `features/customers/config.ts`).
-- **Pickup reminders**: a Vercel cron (`vercel.json`, runs 16:00 and 17:00 UTC) emails customers at 18:00 Paris time the evening before their delivery. Switchable in the console; sends are logged so nobody gets two.
-- Also: **Next deliveries** list for the homepage, a homepage **banner**, and a photo **gallery** (images in Vercel Blob).
+- `CEJ_Logo.jpg`: round logo (header, PIN screen, favicon, social image). `CEJ_Banner.jpg`, `CEF_Food1.jpg`, `CEJ_Food2.jpg`: photos. `CEJ_Menu_Indian.jpg`: her printed menu, the model for menu typography.
+- Colours (set in `app/globals.css`): cream background, charcoal text, her logo's warm gold (`#D4AC54`) as the single accent, plus the logo's soft grey (`#5A5A5A`). A deeper gold is used when gold is text, so it stays readable.
+- Fonts (set in `app/layout.tsx`): Cormorant Garamond (serif) for headings, Jost (light sans-serif) for body text.
+- Spaced capitals for titles, thin rules between courses, middle dots (·) between dish components, centred small-caps course names.
+- No bright colours, gradients, emoji or rounded "app" buttons (corners are square site-wide). Content fades in slowly on scroll.
 
-Manager console tabs: Delivery (Overview, Menu, Drop-offs, Orders), Next deliveries, Banner, Products, Drop-offs (master list), Customers, Gallery.
+## Where things are
+
+- `lib/content.ts`: **all customer-facing wording**, with an English and a French slot. Change wording there, not in components.
+- `lib/i18n.ts`: language helpers. English lives at `/`, French at `/fr`.
+- `components/site/`: shared layout pieces: header, footer, section, button styles, fade-in, tasting menu.
+- `components/home-page.tsx`: the (placeholder) home page, used by `app/page.tsx` and `app/fr/page.tsx`.
+- `components/pin-gate.tsx`, `app/manager/`: the PIN screen and the console shell (add new console sections to its `TABS` list). Console header and tabs are hidden when printing (`print:hidden`).
+- `app/api/verify-pin`: checks the PIN.
+- `v0_memories/`: v0's leftover reference copies from the old app. Not used; ignore.
 
 ## Tech
 
 - Next.js 16 (App Router), React 19, TypeScript, Tailwind 4, shadcn/ui. Package manager: **pnpm**.
 - Next 16 differs from older versions: check `node_modules/next/dist/docs/` before writing Next-specific code.
-- Database: Neon Postgres, raw SQL via `@neondatabase/serverless` (`lib/db.ts`). **No ORM and no schema or migration files**: the tables were created directly in Neon by v0. Inspect the live schema before assuming columns, and treat any table change as hard to undo (ask first).
-- Tables: `menus`, `menu_items`, `products`, `villages`, `orders`, `order_items`, `customers`, `upcoming_deliveries`, `site_banner`, `gallery_photos`, `app_settings`, `pickup_reminder_sends`.
-- Email: Resend (`lib/email.ts`), sender `orders@magnificentsausages.com`. Without `RESEND_API_KEY` emails silently don't send. Don't add a separate Reply-To (it sent Treat Stop emails to spam).
+- `pnpm build` skips type checks (`next.config.mjs`), so also run `npx tsc --noEmit`.
+- Database: Neon Postgres via `@neondatabase/serverless` (`lib/db.ts`), raw SQL, no ORM or migration files. The database still holds the old app's tables; nothing uses them now. Inspect the live schema before assuming anything, and treat any table change as hard to undo (ask first).
 - Manager auth: a single PIN (`MANAGER_PIN`), sent as the `x-pin` header and checked in `lib/pins.ts`.
-- Dates and "tomorrow" are always Europe/Paris time.
+- Dates are always Europe/Paris time.
 - No automated tests.
-
-## Where things are
-
-- `app/page.tsx` homepage, `app/order/` ordering, `app/manager/manager-console.tsx` the console (large file, ~2,500 lines), `app/api/` API routes.
-- `features/` self-contained features (customers, pickup reminders, banner, gallery, next deliveries) designed to be portable to the Treat Stop app.
-- `lib/types.ts` domain types and date/price helpers.
-- `v0_memories/` is v0's leftover reference copies of features. Not used by the app; ignore it.
 
 ## Environment variables (set in Vercel)
 
-`DATABASE_URL`, `MANAGER_PIN`, `RESEND_API_KEY`, `ORDER_EMAIL_FROM` (optional), `OWNER_NOTIFY_EMAIL`, `CRON_SECRET`, plus the Vercel Blob token for the gallery. To run locally, pull them with `vercel env pull`; never commit them.
-
-<!-- BEGIN:nextjs-agent-rules -->
+`MANAGER_PIN` (needed now), `DATABASE_URL` (for features that use the database). Pull them with `vercel env pull`; never commit them.
 
 # This is NOT the Next.js you know
 

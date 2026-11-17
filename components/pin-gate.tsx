@@ -1,11 +1,12 @@
 'use client'
 
 import { useEffect, useState, type ReactNode } from 'react'
+import Image from 'next/image'
 
 type Role = 'manager'
 
 function storageKey(role: Role) {
-  return `msr:pin:${role}`
+  return `cej:pin:${role}`
 }
 
 export function getStoredPin(role: Role): string {
@@ -74,7 +75,7 @@ export function PinGate({
 
   if (!checked) {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-background text-brand-dark/60">
+      <div className="caps flex min-h-dvh items-center justify-center bg-background text-stone">
         Loading…
       </div>
     )
@@ -83,23 +84,22 @@ export function PinGate({
   if (unlocked) return <>{children}</>
 
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-background px-5">
+    <main className="flex min-h-dvh items-center justify-center bg-background px-4">
       <form
         onSubmit={submit}
-        className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-sm"
+        className="w-full max-w-sm border border-border bg-ivory px-6 py-10 text-center"
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/logo.jpg"
-          alt="Magnificent Sausage Rolls logo"
-          className="mx-auto mb-4 h-24 w-24 rounded-full object-cover ring-2 ring-brand-yellow/70"
+        <Image
+          src="/CEJ_Logo.jpg"
+          alt="Eleanor Jessica, cheffe privée"
+          width={112}
+          height={112}
+          priority
+          className="mx-auto h-28 w-28 rounded-full"
         />
-        <h1 className="text-center font-display text-2xl font-bold text-brand-green">
-          {title}
-        </h1>
-        <p className="mt-1 text-center text-sm text-brand-dark/70">
-          Enter your PIN to continue.
-        </p>
+        <h1 className="mt-6 text-3xl text-charcoal">{title}</h1>
+        <span className="rule my-4" aria-hidden />
+        <p className="text-sm text-stone">Enter your PIN to continue.</p>
         <input
           type="password"
           inputMode="numeric"
@@ -107,15 +107,16 @@ export function PinGate({
           value={pin}
           onChange={(e) => setPin(e.target.value)}
           placeholder="PIN"
-          className="mt-5 w-full rounded-xl border border-input bg-background px-4 py-3 text-center text-lg tracking-[0.3em] outline-none focus:border-brand-green focus:ring-2 focus:ring-brand-green/30"
+          aria-label="PIN"
+          className="mt-6 w-full border border-input bg-cream px-4 py-3 text-center text-lg tracking-[0.4em] outline-none placeholder:tracking-[0.3em] placeholder:text-stone/60 focus:border-gold"
         />
         {error ? (
-          <p className="mt-2 text-center text-sm text-destructive">{error}</p>
+          <p className="mt-3 text-sm text-destructive">{error}</p>
         ) : null}
         <button
           type="submit"
           disabled={busy || pin.length === 0}
-          className="mt-4 w-full rounded-md bg-brand-green py-3 font-display text-lg font-bold text-brand-cream transition-colors hover:bg-brand-green-dark disabled:opacity-50"
+          className="caps mt-5 w-full bg-charcoal py-3.5 text-ivory transition-colors duration-500 hover:bg-stone disabled:opacity-50"
         >
           {busy ? 'Checking…' : 'Unlock'}
         </button>

@@ -1,12 +1,12 @@
 import type { Metadata } from 'next'
 import { HomePage } from '@/components/home-page'
+import { content } from '@/lib/content'
 
-export const dynamic = 'force-dynamic'
+const site = content.fr.site
 
 export const metadata: Metadata = {
-  title: 'Magnificent Sausage Rolls & Sausages — Valence-en-Poitou',
-  description:
-    'Sausage rolls (friands à la saucisse) et saucisses faits main à Valence-en-Poitou. Commandez en ligne, retrait dans votre ville.',
+  title: { absolute: site.title },
+  description: site.description,
   alternates: { languages: { en: '/', fr: '/fr' } },
 }
 

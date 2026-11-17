@@ -1,6 +1,6 @@
 import type { NextRequest } from 'next/server'
 
-// The bake sale has a single privileged role: the owner's management console.
+// A single privileged role: Eleanor's management console.
 export type Role = 'manager'
 
 function expectedPin(_role: Role): string | undefined {

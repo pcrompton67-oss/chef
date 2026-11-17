@@ -2,29 +2,15 @@
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
 
-@custom-variant dark (&:is(.dark *));
-
 @theme inline {
-  --color-brand-green: var(--brand-green);
-  --color-brand-green-dark: var(--brand-green-dark);
-  --color-brand-yellow: var(--brand-yellow);
-  --color-brand-cream: var(--brand-cream);
-  --color-brand-dark: var(--brand-dark);
+  --color-gold: var(--gold);
+  --color-gold-deep: var(--gold-deep);
+  --color-stone: var(--stone);
+  --color-cream: var(--cream);
+  --color-ivory: var(--ivory);
+  --color-charcoal: var(--charcoal);
   --font-sans: var(--font-body), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-display), ui-serif, Georgia, serif;
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
+  --font-display: var(--font-display), 'Cormorant Garamond', Georgia, serif;
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -43,98 +29,137 @@
   --color-card: var(--card);
   --color-foreground: var(--foreground);
   --color-background: var(--background);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
+  /* Square corners everywhere: no rounded "app" buttons or cards. */
+  --radius-sm: var(--radius);
+  --radius-md: var(--radius);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --radius-xl: var(--radius);
+  --radius-2xl: var(--radius);
+  --radius-3xl: var(--radius);
+  --radius-4xl: var(--radius);
 }
 
 :root {
   color-scheme: light;
-  /* Magnificent Sausage Rolls brand palette — pulled from the windmill logo */
-  --brand-green: #2d6a3e;
-  --brand-green-dark: #1f4b2c;
-  --brand-yellow: #e4c200;
-  --brand-cream: #f6f3e8;
-  --brand-dark: #1a2e20;
+  /* Eleanor Jessica — taken from her logo: warm gold, soft grey, on cream. */
+  --gold: #d4ac54;
+  --gold-deep: #a9832f; /* gold dark enough to read as text on cream */
+  --stone: #5a5a5a;
+  --cream: #f7f3ea;
+  --ivory: #fcfaf5;
+  --charcoal: #2b2a28;
 
-  --background: #f6f3e8;
-  --foreground: #1a2e20;
-  --card: #ffffff;
-  --card-foreground: #1a2e20;
-  --popover: #ffffff;
-  --popover-foreground: #1a2e20;
-  --primary: #2d6a3e;
-  --primary-foreground: #ffffff;
-  --secondary: #e4c200;
-  --secondary-foreground: #1a2e20;
-  --muted: #e9e4d2;
-  --muted-foreground: #5c6b5f;
-  --accent: #e4c200;
-  --accent-foreground: #1a2e20;
-  --destructive: #c0392b;
-  --border: #d8d2bd;
-  --input: #d8d2bd;
-  --ring: #2d6a3e;
-  --chart-1: #2d6a3e;
-  --chart-2: #e4c200;
-  --chart-3: #1a2e20;
-  --chart-4: #1f4b2c;
-  --chart-5: #5c6b5f;
-  --radius: 0.5rem;
-  --sidebar: #ffffff;
-  --sidebar-foreground: #1a2e20;
-  --sidebar-primary: #2d6a3e;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #e4c200;
-  --sidebar-accent-foreground: #1a2e20;
-  --sidebar-border: #d8d2bd;
-  --sidebar-ring: #2d6a3e;
-}
-
-.dark {
-  color-scheme: dark;
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: var(--cream);
+  --foreground: var(--charcoal);
+  --card: var(--ivory);
+  --card-foreground: var(--charcoal);
+  --popover: var(--ivory);
+  --popover-foreground: var(--charcoal);
+  --primary: var(--charcoal);
+  --primary-foreground: var(--ivory);
+  --secondary: #ece5d6;
+  --secondary-foreground: var(--charcoal);
+  --muted: #ece5d6;
+  --muted-foreground: var(--stone);
+  --accent: var(--gold);
+  --accent-foreground: var(--charcoal);
+  --destructive: #9b3b2f;
+  --border: #ddd4c2;
+  --input: #cfc5b1;
+  --ring: var(--gold);
+  --radius: 0px;
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background font-sans font-light text-foreground;
+    letter-spacing: 0.01em;
+  }
+  h1,
+  h2,
+  h3 {
+    @apply font-display font-normal;
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--gold) 35%, transparent);
+  }
+}
+
+/* ---------- Brand typography (echoes Eleanor's printed menu) ---------- */
+
+@layer components {
+  /* Spaced capitals, as in "INSPIRED BY INDIA". */
+  .caps {
+    @apply font-sans text-xs font-normal uppercase;
+    letter-spacing: 0.32em;
+  }
+
+  /* A short thin rule, as between courses on her menu. */
+  .rule {
+    @apply mx-auto block h-px w-16 border-0 bg-stone/40;
+  }
+
+  /* Title flanked by long thin lines. */
+  .ruled-title {
+    @apply flex items-center gap-4 text-center;
+  }
+  .ruled-title::before,
+  .ruled-title::after {
+    content: '';
+    @apply h-px flex-1 bg-stone/30;
+  }
+
+  /* Tasting menu: centred, small-caps course names, middle-dot components. */
+  .tasting-course {
+    @apply font-display text-2xl leading-snug text-charcoal sm:text-[1.7rem];
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.08em;
+  }
+  .tasting-components {
+    @apply mt-1.5 text-sm leading-relaxed text-stone;
+    letter-spacing: 0.04em;
+  }
+}
+
+/* ---------- Slow fade-in on scroll ---------- */
+/* Only hides content once JavaScript is running (the `js` class is set in
+   the root layout), so the page is never blank without it. */
+.js .fade-in {
+  opacity: 0;
+  transform: translateY(14px);
+  transition:
+    opacity 1.2s ease-out,
+    transform 1.2s ease-out;
+  transition-delay: var(--fade-delay, 0ms);
+}
+.js .fade-in.is-visible {
+  opacity: 1;
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .js .fade-in {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+/* ---------- Printing ---------- */
+/* Pages print in plain black on white; anything marked print:hidden
+   (navigation, buttons) is left off the sheet. */
+@media print {
+  body {
+    background: #fff;
+    color: #000;
+  }
+  .js .fade-in {
+    opacity: 1;
+    transform: none;
   }
 }

@@ -2,12 +2,13 @@ import { PinGate } from '@/components/pin-gate'
 import { ManagerConsole } from './manager-console'
 
 export const metadata = {
-  title: 'Manager — Magnificent Sausage Rolls',
+  title: 'Console',
+  robots: { index: false, follow: false },
 }
 
 export default function ManagerPage() {
   return (
-    <PinGate role="manager" title="Manager">
+    <PinGate role="manager" title="Console">
       <ManagerConsole />
     </PinGate>
   )
