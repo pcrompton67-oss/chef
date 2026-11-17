@@ -26,14 +26,17 @@ export function MenuCardStart({
   onCancel: () => void
   onRead: (draft: MenuCardDraft, base: EditableEvent | null) => void
 }) {
-  const real = (events ?? []).filter((e) => !e.isTest).sort((a, b) => b.date.localeCompare(a.date))
+  // Real evenings first (latest first), then test ones, marked as such.
+  const byDate = [...(events ?? [])].sort((a, b) => b.date.localeCompare(a.date))
+  const real = byDate.filter((e) => !e.isTest)
+  const choices = [...real, ...byDate.filter((e) => e.isTest)]
   const [file, setFile] = useState<File | null>(null)
   const [preview, setPreview] = useState('')
   const [baseId, setBaseId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
-  // Until Eleanor picks, suggest copying from her latest real evening.
+  // Until Eleanor picks, suggest copying from her latest real evening (never a test one).
   const chosenBase = baseId ?? real[0]?.id ?? ''
 
   function choose(f: File | null) {
@@ -107,9 +110,10 @@ export function MenuCardStart({
             onChange={(e) => setBaseId(e.target.value)}
           >
             <option value="">Nothing: start empty</option>
-            {real.map((e) => (
+            {choices.map((e) => (
               <option key={e.id} value={e.id}>
                 {e.title} · {e.date}
+                {e.isTest ? ' (test)' : ''}
               </option>
             ))}
           </select>

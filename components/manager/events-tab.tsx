@@ -812,6 +812,8 @@ function eventFromCard(card: MenuCardDraft, base: EditableEvent | null): { start
       ? `The deposit, number of diners, main photo and collection points were copied from “${base.title}”. Please check them.`
       : 'The deposit, number of diners and collection points aren’t on the card: please fill them in.',
   )
+  if (base?.isTest)
+    notes.push('That was a test evening: make sure the collection points have real addresses before opening for orders.')
   notes.push('Please check every dish, (v) mark and description line against the card.')
   return {
     start: {
