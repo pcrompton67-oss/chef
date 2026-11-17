@@ -17,7 +17,7 @@ The site is deployed on Vercel from `main`: **merging to `main` publishes it str
 Website and management console for **Eleanor Jessica, cheffe privée** (a private chef). Paul builds and hosts it. It was started from a copy of Paul's sausage-rolls ordering app; all the sausage-specific code has been removed (issue #1). Customer-facing features (menus, bookings, etc.) are added through GitHub issues.
 
 - On the site her name is always "Eleanor Jessica" with the strapline "cheffe privée". Never "Chef Eleanor".
-- Address for now: `chefej.popol.tech` (set as `SITE_URL` in `lib/site.ts`; change it there if the domain changes; moving to ejdineathome.com is issue #24).
+- Address: `www.ejdineathome.com` (set as `SITE_URL` in `lib/site.ts`; change it there if the domain changes). The bare `ejdineathome.com` and the old `chefej.popol.tech` redirect to it (set in Vercel → Domains, issue #24).
 - Eleanor uses `/manager` (PIN-protected) to run things.
 
 ## How Dine at Home works

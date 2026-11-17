@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import useSWR from 'swr'
 import { fetcher, send } from '@/app/manager/manager-console'
 import { buttonStyles } from '@/components/site/button-styles'
+import { SITE_URL } from '@/lib/site'
 import {
   IMAGES,
   type EditableCourse,
@@ -360,7 +361,7 @@ function EventEditor({
         </Field>
         <Field
           label="Web address"
-          hint={`The end of the evening’s page address: chefej.popol.tech/dine-at-home/${form.slug || '…'}`}
+          hint={`The end of the evening’s page address: ${SITE_URL.replace(/^https?:\/\//, '')}/dine-at-home/${form.slug || '…'}`}
         >
           <input
             className={inputClass}
