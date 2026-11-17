@@ -103,6 +103,7 @@
   /* A short thin rule, as between courses on her menu. */
   .rule {
     @apply mx-auto block h-px w-16 border-0 bg-stone/40;
+    print-color-adjust: exact; /* keep the thin lines when printed */
   }
 
   /* Title flanked by long thin lines. */
@@ -113,6 +114,7 @@
   .ruled-title::after {
     content: '';
     @apply h-px flex-1 bg-stone/30;
+    print-color-adjust: exact;
   }
 
   /* Square tick box / radio for forms: thin border, filled square when chosen. */

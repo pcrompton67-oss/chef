@@ -39,7 +39,7 @@ Fine dining, calm and elegant. Taken from Eleanor's own files in `public/`:
 - Colours (set in `app/globals.css`): cream background, charcoal text, her logo's warm gold (`#D4AC54`) as the single accent, plus the logo's soft grey (`#5A5A5A`). A deeper gold is used when gold is text, so it stays readable.
 - Fonts (set in `app/layout.tsx`): Cormorant Garamond (serif) for headings, Jost (light sans-serif) for body text.
 - Spaced capitals for titles, thin rules between courses, middle dots (·) between dish components, centred small-caps course names.
-- No bright colours, gradients, emoji or rounded "app" buttons (corners are square site-wide). Content fades in slowly on scroll.
+- No bright colours, gradients, emoji or rounded "app" buttons (corners are square site-wide; the one exception is the menu card on an evening's page, which has softly rounded corners on a band of her gold, like her paper menus). Content fades in slowly on scroll.
 
 ## Where things are
 

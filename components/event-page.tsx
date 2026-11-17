@@ -36,6 +36,8 @@ export function EventPage({
 
   const menu: Menu = {
     eyebrow: c.eyebrow,
+    // "Friday 4 December" / "Vendredi 4 décembre", as on her printed menus
+    date: formatDate(e.date, locale, false).replace(',', ''),
     title: e.theme,
     courses: e.courses.map((course) => ({
       dishes: course.options.map((o) => (o.vegetarian ? `${o.name} ${c.vegetarian}` : o.name)),

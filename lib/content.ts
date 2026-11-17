@@ -18,6 +18,8 @@ export type Course = {
 
 export type TastingMenu = {
   eyebrow: string
+  /** Optional small line under the eyebrow, e.g. the evening's date. */
+  date?: string
   title: string
   courses: Course[]
   price: string
