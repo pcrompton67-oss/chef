@@ -1,6 +1,7 @@
 import { query, transaction } from '@/lib/db'
 import {
   IMAGES,
+  isUploadedPhoto,
   STATUSES,
   type EditableCourse,
   type EditableEvent,
@@ -165,7 +166,7 @@ export function parseEvent(body: unknown): { event: EditableEvent } | { error: s
   if (e.depositCents > e.priceCents) return { error: 'The deposit can’t be more than the price.' }
   if (!(e.capacity > 0)) return { error: 'Please enter how many diners you can cater for.' }
   for (const img of [e.heroImage, e.menuImage]) {
-    if (img && !IMAGES.some((i) => i.path === img)) return { error: 'Please choose a photo from the list.' }
+    if (img && !IMAGES.some((i) => i.path === img) && !isUploadedPhoto(img)) return { error: 'Please choose a photo from the list.' }
   }
 
   for (const [i, c] of e.courses.entries()) {

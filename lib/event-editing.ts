@@ -6,7 +6,16 @@
 export const STATUSES = ['draft', 'open', 'sold_out', 'closed', 'done'] as const
 export type ManagerStatus = (typeof STATUSES)[number]
 
-/** Photos Eleanor can choose from (files in public/). Uploads: issue #20. */
+/** Eleanor's own uploaded photos (Vercel Blob, issue #20; server side in lib/photos.ts). */
+export const PHOTO_FOLDER = 'event-photos/'
+export type UploadedPhoto = { url: string; uploadedAt: string }
+
+/** True for the web address of a photo uploaded from the console. */
+export function isUploadedPhoto(url: string): boolean {
+  return /^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\/event-photos\/[\w.-]+$/i.test(url)
+}
+
+/** Photos that came with the site (files in public/). */
 export const IMAGES = [
   { path: '/CEJ_Banner.jpg', label: 'Banner' },
   { path: '/CEF_Food1.jpg', label: 'Food photo 1' },
