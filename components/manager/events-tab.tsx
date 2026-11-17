@@ -13,6 +13,8 @@ import {
   type ManagerStatus,
 } from '@/lib/event-editing'
 import type { EventListItem } from '@/lib/manager-events'
+import type { MenuCardDraft } from '@/lib/menu-card'
+import { MenuCardStart } from '@/components/manager/menu-card-start'
 import { cn } from '@/lib/utils'
 
 /* Console → Events: list, create, edit, duplicate, open/close and delete test evenings. */
@@ -34,7 +36,14 @@ const STATUS_ACTIONS: { to: ManagerStatus; label: string; help: string }[] = [
   { to: 'draft', label: 'Back to draft', help: 'Hidden from the website.' },
 ]
 
-type View = { kind: 'list' } | { kind: 'edit'; id: string } | { kind: 'new'; start: EditableEvent; n: number }
+// How a new, unsaved evening was started (changes the editor's opening words).
+type NewSource = 'blank' | 'copy' | 'card'
+
+type View =
+  | { kind: 'list' }
+  | { kind: 'card' }
+  | { kind: 'edit'; id: string }
+  | { kind: 'new'; start: EditableEvent; n: number; source: NewSource; notes?: string[] }
 
 export function EventsTab() {
   const [view, setView] = useState<View>({ kind: 'list' })
@@ -52,7 +61,21 @@ export function EventsTab() {
         events={list.data?.events}
         error={list.error || list.data?.error}
         onOpen={(id) => setView({ kind: 'edit', id })}
-        onNew={() => setView({ kind: 'new', start: blankEvent(), n: Date.now() })}
+        onNew={() => setView({ kind: 'new', start: blankEvent(), n: Date.now(), source: 'blank' })}
+        onCard={() => setView({ kind: 'card' })}
+      />
+    )
+  }
+  if (view.kind === 'card') {
+    return (
+      <MenuCardStart
+        events={list.data?.events}
+        onCancel={back}
+        onRead={(draft, base) => {
+          const { start, notes } = eventFromCard(draft, base)
+          setView({ kind: 'new', start, n: Date.now(), source: 'card', notes })
+          window.scrollTo(0, 0)
+        }}
       />
     )
   }
@@ -61,13 +84,15 @@ export function EventsTab() {
       key={view.kind === 'edit' ? view.id : `new-${view.n}`}
       id={view.kind === 'edit' ? view.id : null}
       start={view.kind === 'new' ? view.start : null}
+      source={view.kind === 'new' ? view.source : null}
+      notes={view.kind === 'new' ? view.notes : undefined}
       onBack={back}
       onCreated={(id) => {
         list.mutate()
         setView({ kind: 'edit', id })
       }}
       onDuplicate={(copy) => {
-        setView({ kind: 'new', start: copy, n: Date.now() })
+        setView({ kind: 'new', start: copy, n: Date.now(), source: 'copy' })
         window.scrollTo(0, 0)
       }}
     />
@@ -81,19 +106,26 @@ function EventList({
   error,
   onOpen,
   onNew,
+  onCard,
 }: {
   events?: EventListItem[]
   error?: unknown
   onOpen: (id: string) => void
   onNew: () => void
+  onCard: () => void
 }) {
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h2 className="text-3xl text-charcoal">Evenings</h2>
-        <button type="button" className={buttonStyles('solid')} onClick={onNew}>
-          New evening
-        </button>
+        <div className="flex flex-wrap gap-3">
+          <button type="button" className={buttonStyles('outline')} onClick={onCard}>
+            New evening from menu card
+          </button>
+          <button type="button" className={buttonStyles('solid')} onClick={onNew}>
+            New evening
+          </button>
+        </div>
       </div>
 
       {error ? (
@@ -141,12 +173,16 @@ type Form = Omit<EditableEvent, 'priceCents' | 'depositCents' | 'capacity'> & {
 function EventEditor({
   id,
   start,
+  source,
+  notes,
   onBack,
   onCreated,
   onDuplicate,
 }: {
   id: string | null
   start: EditableEvent | null
+  source: NewSource | null
+  notes?: string[]
   onBack: () => void
   onCreated: (id: string) => void
   onDuplicate: (copy: EditableEvent) => void
@@ -261,21 +297,7 @@ function EventEditor({
   function duplicate() {
     if (!form) return
     const copy = fromForm(form) ?? fromForm({ ...form, price: '0', deposit: '0', capacity: '40' })!
-    onDuplicate({
-      ...copy,
-      id: null,
-      slug: '',
-      date: '',
-      cutoffAt: '',
-      status: 'draft',
-      isTest: false,
-      courses: copy.courses.map((c) => ({
-        ...c,
-        id: null,
-        options: c.options.map((o) => ({ ...o, id: null })),
-      })),
-      collectionPoints: copy.collectionPoints.map((p) => ({ ...p, id: null })),
-    })
+    onDuplicate(asNewCopy(copy))
   }
 
   return (
@@ -285,14 +307,22 @@ function EventEditor({
           ‹ All evenings
         </button>
         <h2 className="text-3xl text-charcoal">
-          {isNew ? (start?.title ? 'Copy of an evening' : 'New evening') : form.title || 'Evening'}
+          {isNew
+            ? source === 'copy'
+              ? 'Copy of an evening'
+              : source === 'card'
+                ? 'New evening from menu card'
+                : 'New evening'
+            : form.title || 'Evening'}
           {form.isTest ? <TestTag /> : null}
         </h2>
         {isNew ? (
           <p className="text-sm leading-relaxed text-stone">
-            {start?.title
+            {source === 'copy'
               ? 'Everything has been copied except the date, cut-off and web address. Nothing is saved until you press Save.'
-              : 'Fill in the details below and press Save. New evenings start as drafts, hidden from the website.'}
+              : source === 'card'
+                ? 'Filled in from your menu card. Please check everything against the card, add anything missing, then press Save. It starts as a draft, hidden from the website.'
+                : 'Fill in the details below and press Save. New evenings start as drafts, hidden from the website.'}
           </p>
         ) : facts ? (
           <p className="text-sm text-stone">
@@ -314,6 +344,18 @@ function EventEditor({
           </p>
         ) : null}
       </div>
+
+      {/* What to check after reading a menu card */}
+      {isNew && notes?.length ? (
+        <section className="space-y-3 border border-gold bg-ivory px-4 py-5 sm:px-6">
+          <h3 className="caps text-gold-deep">Please check</h3>
+          <ul className="list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-charcoal">
+            {notes.map((n, i) => (
+              <li key={i}>{n}</li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {/* Status */}
       {!isNew ? (
@@ -735,6 +777,57 @@ function blankEvent(): EditableEvent {
     id: null, slug: '', title: '', theme: '', date: '', intro: '', heroImage: '', menuImage: '',
     priceCents: 0, depositCents: 0, capacity: 40, cutoffAt: '', status: 'draft', isTest: false,
     courses: [], collectionPoints: [],
+  }
+}
+
+/** A saved evening turned into the start of a new, unsaved one (no date, cut-off, address or saved ids). */
+function asNewCopy(e: EditableEvent): EditableEvent {
+  return {
+    ...e,
+    id: null,
+    slug: '',
+    date: '',
+    cutoffAt: '',
+    status: 'draft',
+    isTest: false,
+    courses: e.courses.map((c) => ({ ...c, id: null, options: c.options.map((o) => ({ ...o, id: null })) })),
+    collectionPoints: e.collectionPoints.map((p) => ({ ...p, id: null })),
+  }
+}
+
+/**
+ * A new evening from a menu card read by Claude (issue #23): the menu, title,
+ * date, price and intro from the card; everything else from the chosen
+ * previous evening, or empty.
+ */
+function eventFromCard(card: MenuCardDraft, base: EditableEvent | null): { start: EditableEvent; notes: string[] } {
+  const from = base ? asNewCopy(base) : blankEvent()
+  const notes = [...card.notes]
+  if (!card.title) notes.push('No title was found on the card: please add one.')
+  if (!card.date) notes.push('No date was found on the card: please add the date of the evening.')
+  if (card.priceCents === null)
+    notes.push(base ? 'No price on the card: the price was copied from the earlier evening.' : 'No price on the card: please add one.')
+  notes.push(
+    base
+      ? `The deposit, number of diners, main photo and collection points were copied from “${base.title}”. Please check them.`
+      : 'The deposit, number of diners and collection points aren’t on the card: please fill them in.',
+  )
+  notes.push('Please check every dish, (v) mark and description line against the card.')
+  return {
+    start: {
+      ...from,
+      title: card.title,
+      slug: slugify(card.title),
+      theme: '',
+      intro: card.intro || from.intro,
+      date: card.date,
+      cutoffAt: card.date ? defaultCutoff(card.date) : '',
+      priceCents: card.priceCents ?? from.priceCents,
+      // The old evening's printed menu would be wrong for this one.
+      menuImage: '',
+      courses: card.courses,
+    },
+    notes,
   }
 }
 
