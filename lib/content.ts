@@ -309,11 +309,11 @@ const en = {
       legalForm: 'legal form, e.g. micro-entreprise',
       address: 'business address',
       siret: 'SIRET number',
-      registration: 'registration (RCS or RNE)',
+      activityCode: 'activity code (APE)',
       vat: 'VAT status, e.g. “TVA non applicable, art. 293 B du CGI”',
       phone: 'phone number',
       email: 'email address',
-      insurance: 'professional insurance: insurer and area covered, if applicable',
+      insurance: 'professional insurer',
       mediator: 'consumer mediator: name and website',
     },
     /** Footer links. */
@@ -345,7 +345,7 @@ const en = {
                 'Legal form: {legalForm}',
                 'Address: {address}',
                 'SIRET: {siret}',
-                'Registration: {registration}',
+                'Activity code (APE): {activityCode}',
                 'VAT: {vat}',
                 'Email: {email}',
                 'Phone: {phone}',
@@ -359,7 +359,7 @@ const en = {
           },
           {
             heading: 'Insurance',
-            body: ['{insurance}'],
+            body: ['Professional liability insurance with {insurance}, covering the European Union.'],
           },
           {
             heading: 'Photographs, text and logo',
@@ -511,7 +511,7 @@ const en = {
             heading: 'Dine at Home',
             body: [
               'Dine at Home is a themed four-course menu that I prepare, and that you collect on the evening, at the place and time you chose, and finish at home with my video guide.',
-              'Prices are per person, as shown on each evening’s page. {vat}',
+              'Prices are per person, as shown on each evening’s page ({vat}).',
             ],
           },
           {
@@ -524,7 +524,7 @@ const en = {
             heading: 'Paying',
             body: [
               'A deposit per person, shown on each evening’s page, is paid when you order, by bank transfer. Please pay it within {holdDays} days, quoting the reference I give you. If it hasn’t arrived by then, I may cancel your order and release your places.',
-              'The balance is paid when you collect, [[how: e.g. by cash or cheque]].',
+              'The balance is paid when you collect, by cash or cheque.',
             ],
           },
           {
@@ -536,7 +536,7 @@ const en = {
           {
             heading: 'If you cancel',
             body: [
-              '[[Eleanor’s cancellation terms: how much notice gives a full refund of the deposit, and when the deposit is kept.]]',
+              'The deposit is non-refundable. If you cancel more than 7 days before the evening, I’ll gladly move your deposit to another Dine at Home evening instead. Within 7 days of the evening, the deposit is kept.',
               'As each menu is fresh food prepared for a set date, the usual 14-day right to cancel online purchases doesn’t apply (French Consumer Code, article L221-28).',
             ],
           },
@@ -549,7 +549,7 @@ const en = {
           {
             heading: 'Collecting',
             body: [
-              'Please collect at the place and time you chose. The exact address is in your confirmation email. If you can’t make it, tell me as early as you can. [[What happens to a box that isn’t collected: Eleanor to confirm.]]',
+              'Please collect at the place and time you chose. The exact address is in your confirmation email. If you can’t make it, tell me as early as you can. A box that isn’t collected, without the order having been cancelled, is still due in full.',
               'Once collected, your food is in your care: please follow the storage advice on the {link:allergens} page and in the box.',
             ],
           },
@@ -832,11 +832,11 @@ const fr: Content = {
       legalForm: 'forme juridique, ex. micro-entreprise',
       address: 'adresse professionnelle',
       siret: 'numéro SIRET',
-      registration: 'immatriculation (RCS ou RNE)',
+      activityCode: 'code APE',
       vat: 'régime de TVA, ex. « TVA non applicable, art. 293 B du CGI »',
       phone: 'numéro de téléphone',
       email: 'adresse e-mail',
-      insurance: 'assurance professionnelle : assureur et couverture géographique, le cas échéant',
+      insurance: 'assureur professionnel',
       mediator: 'médiateur de la consommation : nom et site internet',
     },
     links: {
@@ -866,7 +866,7 @@ const fr: Content = {
                 'Forme juridique : {legalForm}',
                 'Adresse : {address}',
                 'SIRET : {siret}',
-                'Immatriculation : {registration}',
+                'Code APE : {activityCode}',
                 'TVA : {vat}',
                 'E-mail : {email}',
                 'Téléphone : {phone}',
@@ -880,7 +880,7 @@ const fr: Content = {
           },
           {
             heading: 'Assurance',
-            body: ['{insurance}'],
+            body: ['Assurance responsabilité civile professionnelle : {insurance}, couverture Union européenne.'],
           },
           {
             heading: 'Photographies, textes et logo',
@@ -1032,7 +1032,7 @@ const fr: Content = {
             heading: 'Dîner à la maison',
             body: [
               'Dîner à la maison est un menu à thème en quatre plats que je prépare, que vous récupérez le soir même au lieu et à l’heure choisis, et que vous terminez chez vous grâce à mon guide vidéo.',
-              'Les prix s’entendent par personne, comme indiqué sur la page de chaque soirée. {vat}',
+              'Les prix s’entendent par personne, comme indiqué sur la page de chaque soirée ({vat}).',
             ],
           },
           {
@@ -1045,7 +1045,7 @@ const fr: Content = {
             heading: 'Paiement',
             body: [
               'Un acompte par personne, indiqué sur la page de chaque soirée, est réglé à la commande par virement bancaire. Merci de le régler sous {holdDays} jours, en indiquant la référence que je vous donne. Passé ce délai, je peux annuler votre commande et libérer vos places.',
-              'Le solde est réglé à la récupération, [[comment : ex. en espèces ou par chèque]].',
+              'Le solde est réglé à la récupération, en espèces ou par chèque.',
             ],
           },
           {
@@ -1057,7 +1057,7 @@ const fr: Content = {
           {
             heading: 'Si vous annulez',
             body: [
-              '[[Conditions d’annulation d’Eleanor : délai de prévenance pour un remboursement intégral de l’acompte, et cas où l’acompte est conservé.]]',
+              'L’acompte n’est pas remboursable. Si vous annulez plus de 7 jours avant la soirée, je reporte volontiers votre acompte sur une autre soirée Dîner à la maison. À moins de 7 jours de la soirée, l’acompte est conservé.',
               'Chaque menu étant composé de denrées fraîches préparées pour une date précise, le droit de rétractation de 14 jours ne s’applique pas (Code de la consommation, article L221-28).',
             ],
           },
@@ -1070,7 +1070,7 @@ const fr: Content = {
           {
             heading: 'Récupération',
             body: [
-              'Merci de venir au lieu et à l’heure choisis. L’adresse exacte figure dans votre e-mail de confirmation. En cas d’empêchement, prévenez-moi le plus tôt possible. [[Ce qu’il advient d’une box non récupérée : à confirmer par Eleanor.]]',
+              'Merci de venir au lieu et à l’heure choisis. L’adresse exacte figure dans votre e-mail de confirmation. En cas d’empêchement, prévenez-moi le plus tôt possible. Une box non récupérée, sans annulation de la commande, reste due en totalité.',
               'Une fois récupéré, votre repas est sous votre responsabilité : suivez les conseils de conservation de la page {link:allergens} et ceux joints à la box.',
             ],
           },

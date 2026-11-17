@@ -14,7 +14,8 @@ export const EMAIL_REPLY_TO = 'Eleanor <privatechefeleanor@gmail.com>'
 export const OWNER_EMAIL = 'privatechefeleanor@gmail.com'
 
 /**
- * Eleanor's business details for the legal pages (issue #11): mentions
+ * Eleanor's business details for the legal pages (issue #11), taken from
+ * her own site, chefeleanor.com: mentions
  * légales, privacy policy and booking terms. The one place to fill them in.
  * Anything left as `null` shows on the site as a highlighted
  * "[to be supplied: …]" placeholder (its description is in lib/content.ts,
@@ -22,22 +23,21 @@ export const OWNER_EMAIL = 'privatechefeleanor@gmail.com'
  */
 export const BUSINESS = {
   /** Her full legal name, as registered. */
-  legalName: null,
+  legalName: 'Eleanor Jessica Girling',
   /** The name the business trades under. */
   tradingName: 'Eleanor Jessica, cheffe privée',
-  /** e.g. "Entrepreneur individuel (micro-entreprise)". */
-  legalForm: null,
+  legalForm: 'Entrepreneur individuel (EI)',
   /** Business address, on one line. */
-  address: null,
-  siret: null,
-  /** e.g. "RCS Niort" or "Registre national des entreprises (RNE)". */
-  registration: null,
-  /** e.g. "TVA non applicable, art. 293 B du CGI" or a VAT number. */
-  vat: null,
-  phone: null,
+  address: '1 Impasse des Jardins, 79190 Lorigné',
+  siret: '932 428 600 00013',
+  /** Code APE (her activity code). */
+  activityCode: '56.21Z',
+  /** Her VAT status, or a VAT number if she registers for VAT. */
+  vat: 'TVA non applicable, art. 293 B du CGI',
+  phone: '+33 6 71 68 61 64',
   email: OWNER_EMAIL,
-  /** Professional liability insurance: insurer and area covered (if she has to show it). */
-  insurance: null,
+  /** Professional liability insurer (the area covered, the EU, is in the wording). */
+  insurance: 'MAIF',
   /** The consumer mediator she has signed up with: name and website. */
   mediator: null,
 } satisfies Record<string, string | null>
