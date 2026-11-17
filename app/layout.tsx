@@ -2,6 +2,7 @@ import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { Cormorant_Garamond, Jost } from 'next/font/google'
 import { content } from '@/lib/content'
+import { SITE_URL } from '@/lib/site'
 import './globals.css'
 
 // Elegant high-contrast serif for headings, like the "E" in Eleanor's logo.
@@ -23,8 +24,6 @@ const jost = Jost({
 
 const site = content.en.site
 
-// The site's public address, used for share previews (social images).
-const SITE_URL = 'https://chefej.popol.tech'
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

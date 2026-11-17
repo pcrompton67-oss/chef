@@ -1,4 +1,5 @@
-import { NextResponse, type NextRequest } from 'next/server'
+import { NextResponse, after, type NextRequest } from 'next/server'
+import { emailNewManualOrder } from '@/lib/emails'
 import { checkRequestPin } from '@/lib/pins'
 import { addManualOrder, listOrders } from '@/lib/manager-orders'
 
@@ -15,5 +16,6 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   if (!checkRequestPin(req, 'manager')) return NextResponse.json({ error: 'PIN required' }, { status: 401 })
   const result = await addManualOrder(await req.json().catch(() => null))
+  if (result.ok) after(() => emailNewManualOrder(result.id))
   return NextResponse.json(result, { status: result.ok ? 201 : result.overCapacity ? 409 : 400 })
 }

@@ -17,7 +17,7 @@ The site is deployed on Vercel from `main`: **merging to `main` publishes it str
 Website and management console for **Eleanor Jessica, cheffe privée** (a private chef). Paul builds and hosts it. It was started from a copy of Paul's sausage-rolls ordering app; all the sausage-specific code has been removed (issue #1). Customer-facing features (menus, bookings, etc.) are added through GitHub issues.
 
 - On the site her name is always "Eleanor Jessica" with the strapline "cheffe privée". Never "Chef Eleanor".
-- Address for now: `chefej.popol.tech` (set as `SITE_URL` in `app/layout.tsx`; change it there if the domain changes).
+- Address for now: `chefej.popol.tech` (set as `SITE_URL` in `lib/site.ts`; change it there if the domain changes; moving to ejdineathome.com is issue #24).
 - Eleanor uses `/manager` (PIN-protected) to run things.
 
 ## How Dine at Home works
@@ -57,6 +57,9 @@ Fine dining, calm and elegant. Taken from Eleanor's own files in `public/`:
 - Console → Events (issue #7): `components/manager/events-tab.tsx` (list and editor), `lib/manager-events.ts` (reads/saves events with menu and collection points in one all-or-nothing save; includes drafts and addresses, so PIN-only), `lib/event-editing.ts` (shapes shared with the browser, and the list of photos to choose from), API at `app/api/manager/events`. New and duplicated evenings start as drafts. Dishes and collection points already ordered can't be removed; capacity can't go below places taken. Test or real is fixed at creation; only test evenings (with their orders) can be deleted.
 - Console → Orders (issue #8): `components/manager/orders-tab.tsx`, `lib/manager-orders.ts` (list, actions, manual orders), `lib/order-editing.ts` (shared shapes and labels), API at `app/api/manager/orders`. Actions: deposit received, collected & balance paid (cash/cheque), cancel (frees places; anything paid becomes "refund to send"), refund sent. Manual orders use the same dish check and the same event lock as website orders; email is optional (no customer record without one); over capacity only with an explicit "Book anyway".
 - Console → Printouts (issue #9): `components/manager/printouts-tab.tsx`. Prep list, collection run sheet and box labels (8 per A4, 99.1 × 67.7 mm label sheets) for one evening; only the sheet on screen prints. Confirmed orders only by default; orders waiting for a deposit are listed separately or included with a tick. Allergy answers like "none" / "aucune" are ignored.
+- Emails (issue #13), sent through Resend from `eleanor@ejdineathome.com`; replies go to `privatechefeleanor@gmail.com` (both set in `lib/site.ts`). `lib/email-templates.ts`: what each email says and looks like (HTML + plain text; no database, so the console previews use it too). Customer wording is in `lib/content.ts` (`email`); Eleanor's copy is English only. `lib/emails.ts`: loading orders, sending, settings, reminders. Every email is logged in `email_log` (sent / failed / skipped). Without `RESEND_API_KEY`, or to an `@example.com` address, nothing is sent (logged as skipped). When: request received + Eleanor's copy on a website order; request received or confirmed on a manual order with an email; confirmed on "Deposit received"; reminder the day before at 18:00 Paris, to confirmed orders only, once per order. Only confirmed and reminder emails contain the address. Transfer reference is `EJ-<order no.>`.
+- Reminders: `app/api/cron/reminders`, run by Vercel at 16:00 and 17:00 UTC (`vercel.json`); only the run that falls at 18h in Paris does anything. Needs `CRON_SECRET`.
+- Console → Emails: `components/manager/emails-tab.tsx`, API at `app/api/manager/emails`. Sending status, reminders on/off, bank details (stored in `settings`, key `emails`), previews of every email in both languages, recent send log.
 - `app/api/verify-pin`: checks the PIN.
 - `v0_memories/`: v0's leftover reference copies from the old app. Not used; ignore.
 
@@ -82,7 +85,7 @@ Fine dining, calm and elegant. Taken from Eleanor's own files in `public/`:
 
 ## Environment variables (set in Vercel)
 
-`MANAGER_PIN` (needed now), `DATABASE_URL` (for features that use the database). Pull them with `vercel env pull`; never commit them.
+`MANAGER_PIN` (needed now), `DATABASE_URL` (for features that use the database), `RESEND_API_KEY` (emails; without it nothing is sent), `CRON_SECRET` (any long random text; lets Vercel run the 18:00 reminders). Pull them with `vercel env pull`; never commit them.
 
 # This is NOT the Next.js you know
 

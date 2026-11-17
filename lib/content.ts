@@ -152,7 +152,7 @@ const en = {
     eyebrow: 'Thank you',
     title: 'Your places are reserved',
     text: [
-      'I’ll be in touch shortly with the details for paying your deposit by bank transfer.',
+      'I’ve sent you an email with your order and the details for paying your deposit by bank transfer.',
       'Your order is confirmed as soon as the deposit has been received, and the balance is paid on collection.',
     ],
     reference: (ref: string) => `Order no. ${ref}`,
@@ -164,6 +164,64 @@ const en = {
     button: 'Notify me',
     done: 'Thank you. I’ll let you know as soon as the next evening opens.',
     error: 'Please check this email address.',
+  },
+  email: {
+    greeting: (name: string) => `Hello ${name},`,
+    signOff: 'With warm wishes,',
+    signature: 'Eleanor',
+    replyNote: 'If you have any questions, simply reply to this email.',
+    footer: 'Eleanor Jessica · cheffe privée · Dine at Home',
+    summaryTitle: 'Your order',
+    evening: 'Evening',
+    diners: 'Diners',
+    collection: 'Collection',
+    collectionAt: (place: string, time: string) => `${place} at ${time}`,
+    address: 'Address',
+    allergies: 'Allergies & dietary needs',
+    noAllergies: 'None given',
+    total: 'Total',
+    deposit: 'Deposit',
+    balance: 'Balance on collection',
+    orderNo: 'Order no.',
+    received: {
+      subject: (title: string) => `Your request · ${title}`,
+      title: 'Thank you',
+      intro: (title: string, date: string) =>
+        `Thank you for your order for ${title} on ${date}. Your places are held for you, and your booking is confirmed as soon as the deposit arrives.`,
+      payTitle: 'Your deposit',
+      transferIntro: (amount: string) => `Please pay the deposit of ${amount} by bank transfer:`,
+      accountName: 'Account name',
+      iban: 'IBAN',
+      bic: 'BIC',
+      amount: 'Amount',
+      reference: 'Reference',
+      transferNote:
+        'Please include the reference so I can match your payment. I’ll email you as soon as it arrives.',
+      bankLater: (amount: string) =>
+        `I’ll send you the bank details for paying the deposit of ${amount} very shortly.`,
+      cardPaid: (amount: string) => `Your deposit of ${amount} has been paid by card. Thank you.`,
+      payInPerson: (amount: string, method: 'cash' | 'cheque') =>
+        `The deposit of ${amount} is to be paid by ${method === 'cash' ? 'cash' : 'cheque'}, as agreed.`,
+      addressNote: 'The exact collection address will be sent with your confirmation.',
+    },
+    confirmed: {
+      subject: (title: string) => `Booking confirmed · ${title}`,
+      title: 'Your booking is confirmed',
+      intro: (title: string, date: string) =>
+        `Your deposit has arrived, thank you. Your booking for ${title} on ${date} is confirmed.`,
+      introNoDeposit: (title: string, date: string) =>
+        `Your booking for ${title} on ${date} is confirmed.`,
+      collectionTitle: 'Collecting your meal',
+      balanceNote: 'Payable by cash or cheque when you collect.',
+      allergiesNote: 'If anything has changed, please reply to this email.',
+    },
+    reminder: {
+      subject: (title: string) => `See you tomorrow · ${title}`,
+      title: 'See you tomorrow',
+      intro: (title: string, date: string) =>
+        `Just a reminder that your ${title} meal is ready to collect tomorrow, ${date}.`,
+      outro: 'I look forward to seeing you.',
+    },
   },
   menuWords: {
     or: 'or',
@@ -302,7 +360,7 @@ const fr: Content = {
     eyebrow: 'Merci',
     title: 'Vos places sont réservées',
     text: [
-      'Je vous contacte très vite avec les coordonnées pour régler l’acompte par virement.',
+      'Je vous ai envoyé un e-mail avec votre commande et les coordonnées pour régler l’acompte par virement.',
       'Votre commande est confirmée dès réception de l’acompte ; le solde est réglé à la récupération.',
     ],
     reference: (ref: string) => `Commande n° ${ref}`,
@@ -314,6 +372,64 @@ const fr: Content = {
     button: 'Me prévenir',
     done: 'Merci. Je vous préviendrai dès l’ouverture de la prochaine soirée.',
     error: 'Merci de vérifier cette adresse e-mail.',
+  },
+  email: {
+    greeting: (name: string) => `Bonjour ${name},`,
+    signOff: 'Bien chaleureusement,',
+    signature: 'Eleanor',
+    replyNote: 'Pour toute question, il vous suffit de répondre à cet e-mail.',
+    footer: 'Eleanor Jessica · cheffe privée · Dîner à la maison',
+    summaryTitle: 'Votre commande',
+    evening: 'Soirée',
+    diners: 'Convives',
+    collection: 'Retrait',
+    collectionAt: (place: string, time: string) => `${place} à ${time}`,
+    address: 'Adresse',
+    allergies: 'Allergies et régimes',
+    noAllergies: 'Aucune indiquée',
+    total: 'Total',
+    deposit: 'Acompte',
+    balance: 'Solde au retrait',
+    orderNo: 'Commande n°',
+    received: {
+      subject: (title: string) => `Votre demande · ${title}`,
+      title: 'Merci',
+      intro: (title: string, date: string) =>
+        `Merci pour votre commande pour ${title}, le ${date.charAt(0).toLowerCase() + date.slice(1)}. Vos places sont réservées, et votre réservation est confirmée dès réception de l’acompte.`,
+      payTitle: 'Votre acompte',
+      transferIntro: (amount: string) => `Merci de régler l’acompte de ${amount} par virement bancaire :`,
+      accountName: 'Titulaire du compte',
+      iban: 'IBAN',
+      bic: 'BIC',
+      amount: 'Montant',
+      reference: 'Référence',
+      transferNote:
+        'Merci d’indiquer la référence pour que je puisse identifier votre paiement. Je vous écrirai dès sa réception.',
+      bankLater: (amount: string) =>
+        `Je vous envoie très vite les coordonnées bancaires pour régler l’acompte de ${amount}.`,
+      cardPaid: (amount: string) => `Votre acompte de ${amount} a été réglé par carte. Merci.`,
+      payInPerson: (amount: string, method: 'cash' | 'cheque') =>
+        `L’acompte de ${amount} est à régler ${method === 'cash' ? 'en espèces' : 'par chèque'}, comme convenu.`,
+      addressNote: 'L’adresse exacte du retrait vous sera envoyée avec votre confirmation.',
+    },
+    confirmed: {
+      subject: (title: string) => `Réservation confirmée · ${title}`,
+      title: 'Votre réservation est confirmée',
+      intro: (title: string, date: string) =>
+        `Votre acompte est bien arrivé, merci. Votre réservation pour ${title}, le ${date.charAt(0).toLowerCase() + date.slice(1)}, est confirmée.`,
+      introNoDeposit: (title: string, date: string) =>
+        `Votre réservation pour ${title}, le ${date.charAt(0).toLowerCase() + date.slice(1)}, est confirmée.`,
+      collectionTitle: 'Le retrait de votre repas',
+      balanceNote: 'À régler en espèces ou par chèque au retrait.',
+      allergiesNote: 'Si quelque chose a changé, merci de répondre à cet e-mail.',
+    },
+    reminder: {
+      subject: (title: string) => `À demain · ${title}`,
+      title: 'À demain',
+      intro: (title: string, date: string) =>
+        `Petit rappel : votre repas ${title} est à retirer demain, ${date.charAt(0).toLowerCase() + date.slice(1)}.`,
+      outro: 'Au plaisir de vous voir.',
+    },
   },
   menuWords: {
     or: 'ou',

@@ -1,5 +1,6 @@
 'use client'
 
+import { transferReference } from '@/lib/email-templates'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import useSWR from 'swr'
 import { fetcher, send } from '@/app/manager/manager-console'
@@ -285,6 +286,9 @@ function OrderDetail({
           Total {money(o.totalCents)} · deposit {money(o.depositCents)} by {METHOD_LABEL[o.paymentMethod] ?? o.paymentMethod}{' '}
           {o.depositPaid ? '(paid)' : '(not paid yet)'}
           {o.paymentReference ? <span className="block text-stone">Reference: {o.paymentReference}</span> : null}
+          {o.paymentMethod === 'bank_transfer' && !o.depositPaid && o.depositCents > 0 ? (
+            <span className="block text-stone">Transfer reference given to the customer: {transferReference(o.id)}</span>
+          ) : null}
           {o.collected ? (
             <span className="block">
               Balance {money(o.balanceCents)} paid at collection by {METHOD_LABEL[o.balanceMethod ?? ''] ?? '—'}
