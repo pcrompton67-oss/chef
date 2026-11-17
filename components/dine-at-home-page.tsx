@@ -9,6 +9,7 @@ import { SiteHeader } from '@/components/site/site-header'
 import { SiteFooter } from '@/components/site/site-footer'
 import { buttonStyles } from '@/components/site/button-styles'
 import { AvailabilityNote } from '@/components/site/availability-note'
+import { NotifyForm } from '@/components/notify-form'
 
 /** The Dine at Home page: introduction, how it works, upcoming and past evenings. */
 export function DineAtHomePage({
@@ -92,6 +93,10 @@ export function DineAtHomePage({
               </FadeIn>
             ))}
           </ol>
+          {/* Mailing-list sign-up (issue #10) */}
+          <FadeIn className="mt-24">
+            <NotifyForm locale={locale} />
+          </FadeIn>
         </Section>
 
         {/* Past evenings */}

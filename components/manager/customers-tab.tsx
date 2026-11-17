@@ -72,8 +72,8 @@ export function CustomersTab() {
         </button>
       </div>
       <p className="-mt-4 text-sm text-stone">
-        The list only holds people who ticked “new box dates and other news” when ordering, or signed up on a
-        sold-out evening, and haven’t unsubscribed. Test customers are never included.
+        The list only holds people who ticked “new box dates and other news” when ordering, or used a sign-up box
+        (home page or sold-out evening), and haven’t unsubscribed. Test customers are never included.
       </p>
       {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
 
@@ -185,7 +185,7 @@ function CustomerDetail({ customer: c, onChanged }: { customer: CustomerRow; onC
           <ul className="space-y-1 text-sm text-charcoal">
             {c.signups.map((s, i) => (
               <li key={i}>
-                Tell me about the next one{s.event ? ` · on the ${s.event} page` : ''} · {formatDateTime(s.date)}
+                {s.event ? `Sold-out evening box · ${s.event}` : 'Home page box'} · {formatDateTime(s.date)}
               </li>
             ))}
           </ul>
