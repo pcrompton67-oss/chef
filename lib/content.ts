@@ -166,6 +166,10 @@ const en = {
     done: 'Thank you. I’ll let you know as soon as the next evening opens.',
     error: 'Please check this email address.',
     consent: 'You’ll receive new box dates and other news from Eleanor Jessica. You can unsubscribe at any time.',
+    // The same box on the home page (not tied to one evening).
+    newsTitle: 'Hear about new box dates',
+    newsButton: 'Subscribe',
+    newsDone: 'Thank you. You’re on the list for new box dates and news.',
   },
   email: {
     greeting: (name: string) => `Hello ${name},`,
@@ -391,6 +395,9 @@ const fr: Content = {
     done: 'Merci. Je vous préviendrai dès l’ouverture de la prochaine soirée.',
     error: 'Merci de vérifier cette adresse e-mail.',
     consent: 'Vous recevrez les dates des prochaines box et les autres actualités d’Eleanor Jessica. Désabonnement possible à tout moment.',
+    newsTitle: 'Être informé(e) des prochaines box',
+    newsButton: 'M’inscrire',
+    newsDone: 'Merci. Vous recevrez les dates des prochaines box et mes actualités.',
   },
   email: {
     greeting: (name: string) => `Bonjour ${name},`,

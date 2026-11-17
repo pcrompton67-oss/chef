@@ -29,7 +29,7 @@ Working assumptions (issue #2). Paul and Eleanor should correct anything that's 
 - **Collection points**: each event has a few places, each with a collection time and an exact address (e.g. Lorigné 17:00, Sauzé-Vaussais 17:30, St-Pierre-d'Exideuil 18:00, Ruffec 18:30).
 - An **order** is for a number of diners at one collection point. It records how many chose each option of every choice course, plus allergies, language, and where it came from (website, phone, WhatsApp, …).
 - **Payment**: a deposit per person is paid when ordering (card or bank transfer; cash or cheque for orders Eleanor takes herself). The balance is paid at collection. Unpaid orders hold their places until `hold_expires_at`, then expire. Refunds are tracked on the order.
-- **Customers** are remembered by email. The mailing list is “new box dates and other news from Eleanor Jessica”: people join only by ticking that box when ordering or by using the “Tell me about the next one” sign-up box (on a sold-out evening), and leave through the unsubscribe link or the console.
+- **Customers** are remembered by email. The mailing list is “new box dates and other news from Eleanor Jessica”: people join only by ticking that box when ordering or by using a sign-up box (“Hear about new box dates” on the home page, or “Tell me about the next one” on a sold-out evening), and leave through the unsubscribe link or the console.
 
 ## Look and feel
 

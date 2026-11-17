@@ -72,7 +72,7 @@ export type CustomerOrder = {
 }
 
 export type CustomerSignup = {
-  /** The evening whose page they signed up on (empty if not known). */
+  /** The sold-out evening whose page they signed up on (empty = the home page box). */
   event: string
   date: string // YYYY-MM-DD HH:MM, Paris
 }
