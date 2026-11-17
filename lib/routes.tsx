@@ -1,6 +1,7 @@
 import { cache } from 'react'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
+import { connection } from 'next/server'
 import { content } from '@/lib/content'
 import { formatDate, localePath, type Locale } from '@/lib/i18n'
 import { getEvent as loadEvent, listEvents } from '@/lib/events'
@@ -10,8 +11,11 @@ import { ThankYouPage } from '@/components/thank-you-page'
 import { TokenActionForm } from '@/components/token-action-page'
 import { SiteHeader } from '@/components/site/site-header'
 import { SiteFooter } from '@/components/site/site-footer'
-import { transferDepositDue } from '@/lib/orders'
-import { getBusinessSettings } from '@/lib/settings'
+import { MAX_DINERS, transferDepositDue } from '@/lib/orders'
+import { DEFAULT_HOLD_DAYS, getBusinessSettings } from '@/lib/settings'
+import { LegalPage } from '@/components/legal-page'
+import { LEGAL_PATHS } from '@/lib/site'
+import type { LegalPageKey } from '@/lib/content'
 
 // The page and its metadata share one database lookup per request.
 const getEvent = cache(loadEvent)
@@ -127,4 +131,24 @@ export function renderConfirmSignup(locale: Locale, t: string | string[] | undef
 
 export function confirmSignupMetadata(locale: Locale): Metadata {
   return { title: content[locale].confirmSignup.metaTitle, robots: { index: false } }
+}
+
+/** The legal pages (issue #11): legal notice, privacy, allergens, booking terms. */
+export async function renderLegal(locale: Locale, page: LegalPageKey) {
+  // The booking terms quote the days allowed to pay; fall back to the default
+  // if the database can't be reached, so the page always shows. Read on each
+  // visit (not when the site is built) so a change in Settings shows straight away.
+  await connection()
+  const holdDays = await getBusinessSettings()
+    .then((s) => s.holdDays)
+    .catch(() => DEFAULT_HOLD_DAYS)
+  return <LegalPage locale={locale} page={page} values={{ holdDays, maxDiners: MAX_DINERS }} />
+}
+
+export function legalMetadata(locale: Locale, page: LegalPageKey): Metadata {
+  const path = LEGAL_PATHS[page]
+  return {
+    title: content[locale].legal.pages[page].metaTitle,
+    alternates: { canonical: localePath(path, locale), languages: { en: path, fr: `/fr${path}` } },
+  }
 }

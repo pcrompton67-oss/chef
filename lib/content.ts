@@ -28,6 +28,27 @@ export type TastingMenu = {
   footnote?: string
 }
 
+/** One legal page (issue #11). In the text, {legalName} etc. are filled from
+ * BUSINESS in lib/site.ts, {link:privacy} etc. link to another legal page,
+ * {holdDays} and {maxDiners} come from the settings, and [[…]] marks wording
+ * Eleanor still has to supply (shown highlighted). */
+export type LegalPage = {
+  metaTitle: string
+  eyebrow: string
+  title: string
+  intro: string[]
+  /** Each body item is a paragraph, or a list (an array). */
+  sections: { heading: string; body: (string | string[])[] }[]
+}
+
+export const LEGAL_PAGES = ['legalNotice', 'privacy', 'allergens', 'terms'] as const
+export type LegalPageKey = (typeof LEGAL_PAGES)[number]
+
+/** Change this whenever the legal wording changes. */
+export const LEGAL_UPDATED = '2026-11-17'
+
+const legalPages = (pages: Record<LegalPageKey, LegalPage>) => pages
+
 const en = {
   site: {
     name: 'Eleanor Jessica',
@@ -122,6 +143,13 @@ const en = {
     marketing: 'Yes, send me new box dates and other news from Eleanor Jessica.',
     agreement:
       'I understand that my order is subject to availability, is confirmed only once the deposit is received, and that the balance is paid on collection.',
+    agreementLinks: {
+      before: 'I accept the ',
+      terms: 'booking terms',
+      middle: ' and have read the ',
+      privacy: 'privacy policy',
+      after: '.',
+    },
     summaryTitle: 'Your order',
     total: 'Total',
     deposit: 'Deposit to reserve',
@@ -271,6 +299,277 @@ const en = {
   footer: {
     rights: 'All rights reserved.',
   },
+  legal: {
+    updated: 'Last updated',
+    /** Shown, highlighted, where a business detail in lib/site.ts is still missing. */
+    missing: (what: string) => `to be supplied: ${what}`,
+    fields: {
+      legalName: 'Eleanor’s full legal name',
+      tradingName: 'trading name',
+      legalForm: 'legal form, e.g. micro-entreprise',
+      address: 'business address',
+      siret: 'SIRET number',
+      registration: 'registration (RCS or RNE)',
+      vat: 'VAT status, e.g. “TVA non applicable, art. 293 B du CGI”',
+      phone: 'phone number',
+      email: 'email address',
+      insurance: 'professional insurance: insurer and area covered, if applicable',
+      mediator: 'consumer mediator: name and website',
+    },
+    /** Footer links. */
+    links: {
+      legalNotice: 'Legal notice',
+      privacy: 'Privacy',
+      allergens: 'Allergens',
+      terms: 'Booking terms',
+    },
+    /** The same pages named inside a sentence. */
+    inText: {
+      legalNotice: 'legal notice',
+      privacy: 'privacy policy',
+      allergens: 'allergen information',
+      terms: 'booking terms',
+    },
+    pages: legalPages({
+      legalNotice: {
+        metaTitle: 'Legal notice',
+        eyebrow: 'Mentions légales',
+        title: 'Legal notice',
+        intro: [],
+        sections: [
+          {
+            heading: 'Who publishes this website',
+            body: [
+              'This website is published by {legalName}, trading as {tradingName}.',
+              [
+                'Legal form: {legalForm}',
+                'Address: {address}',
+                'SIRET: {siret}',
+                'Registration: {registration}',
+                'VAT: {vat}',
+                'Email: {email}',
+                'Phone: {phone}',
+              ],
+              'Publication director: {legalName}.',
+            ],
+          },
+          {
+            heading: 'Hosting',
+            body: ['This website is hosted by {host}.'],
+          },
+          {
+            heading: 'Insurance',
+            body: ['{insurance}'],
+          },
+          {
+            heading: 'Photographs, text and logo',
+            body: [
+              'The photographs, menus, text and logo on this website belong to {legalName}. Please don’t copy or reuse them without asking first.',
+            ],
+          },
+          {
+            heading: 'Your personal data',
+            body: ['How I use the details you give me, and your rights, are explained in the {link:privacy}.'],
+          },
+        ],
+      },
+      privacy: {
+        metaTitle: 'Privacy policy',
+        eyebrow: 'Your data',
+        title: 'Privacy policy',
+        intro: [
+          'This policy explains what personal information I collect through this website and when you order, why I need it, and what your rights are. I’m responsible for it: {legalName}, {address}, {email}.',
+        ],
+        sections: [
+          {
+            heading: 'What I collect',
+            body: [
+              [
+                'When you order: your name, mobile number and email address, the dishes you choose, where you collect, and any allergies or dietary needs you tell me about.',
+                'Your preferred language, and how and when you paid.',
+                'If you join my mailing list: your email address, your language, and when you joined and confirmed.',
+                'A record of the emails I send you (date, which email, and whether it was sent).',
+              ],
+            ],
+          },
+          {
+            heading: 'Why I use it',
+            body: [
+              [
+                'To prepare your order, tell you about it and take payment. This is needed to carry out your order.',
+                'Allergies and dietary needs, which can count as health information, are used only to prepare your food safely. You choose to give them to me, and you can ask me to delete them at any time.',
+                'To send you new box dates and other news, only if you’ve asked for them and confirmed.',
+                'To keep the accounting records French law requires.',
+              ],
+              'I never sell your details or share them for anyone else’s marketing.',
+            ],
+          },
+          {
+            heading: 'The mailing list',
+            body: [
+              'You join only by ticking the box when you order, or by entering your email in a sign-up box on this website and then clicking the link in the confirmation email I send you.',
+              'Every news email has an unsubscribe link at the bottom: one click and you’re off the list. You can also simply reply to any email and ask. Emails about an order you have placed are still sent, as they’re part of your order.',
+            ],
+          },
+          {
+            heading: 'Who handles it for me',
+            body: [
+              'Only I see your details. These companies store or send them on my behalf, and only for that purpose:',
+              [
+                'Vercel Inc. (United States): hosts this website.',
+                'Neon Inc. (United States): stores orders and customer details, [[server location to be confirmed]].',
+                'Resend Inc. (United States): sends my emails.',
+              ],
+              'Where your details are handled outside the European Union, this is covered by safeguards recognised under European law, such as the EU–US Data Privacy Framework or the European Commission’s standard contractual clauses. [[To be checked for each company.]]',
+            ],
+          },
+          {
+            heading: 'How long I keep it',
+            body: [
+              [
+                'Orders and payment records: 10 years, as French accounting law requires.',
+                'Allergies and dietary needs: [[how long, e.g. deleted 3 months after your evening]].',
+                'Your contact details: 3 years after your last order or contact with me. [[To be confirmed.]]',
+                'Mailing list: until you unsubscribe. After that I keep only a note that you left, so you’re not added again by mistake.',
+              ],
+            ],
+          },
+          {
+            heading: 'Cookies',
+            body: [
+              'This website uses no advertising or tracking cookies. Visits are counted with Vercel Web Analytics, which uses no cookies and doesn’t identify you.',
+            ],
+          },
+          {
+            heading: 'Your rights',
+            body: [
+              'You can ask to see the information I hold about you, to correct it, delete it or receive a copy, or to object to how I use it. You can withdraw your consent at any time. Just email me at {email}.',
+              'If you’re not happy with my answer, you can complain to the CNIL, the French data protection authority (www.cnil.fr).',
+            ],
+          },
+        ],
+      },
+      allergens: {
+        metaTitle: 'Allergens',
+        eyebrow: 'Your safety',
+        title: 'Allergens',
+        intro: [
+          'Every menu is cooked in my own kitchen, where all fourteen major allergens are handled.',
+        ],
+        sections: [
+          {
+            heading: 'The fourteen major allergens',
+            body: [
+              [
+                'Cereals containing gluten',
+                'Crustaceans',
+                'Eggs',
+                'Fish',
+                'Peanuts',
+                'Soya',
+                'Milk',
+                'Nuts',
+                'Celery',
+                'Mustard',
+                'Sesame',
+                'Sulphites',
+                'Lupin',
+                'Molluscs',
+              ],
+            ],
+          },
+          {
+            heading: 'Tell me when you order',
+            body: [
+              'Please list every diner’s allergies and dietary needs on the order form. I’ll let you know which dishes are affected and adapt them where I safely can. If I can’t, I’ll tell you before your order is confirmed.',
+              'You can ask me for the full list of allergens in each dish, in writing, at any time before your evening. [[Also printed on the label of each box? Eleanor to confirm.]]',
+            ],
+          },
+          {
+            heading: 'What I can’t promise',
+            body: [
+              'I take great care, but my kitchen isn’t allergen-free, so I can’t guarantee that any dish is completely free from traces. If an allergy is severe, please talk to me before ordering.',
+            ],
+          },
+          {
+            heading: 'Once you’ve collected',
+            body: [
+              '[[Storage and finishing advice, e.g. keep the box chilled and enjoy it the same evening. Eleanor to supply.]]',
+            ],
+          },
+        ],
+      },
+      terms: {
+        metaTitle: 'Booking terms',
+        eyebrow: 'Dine at Home',
+        title: 'Booking terms',
+        intro: [
+          'These terms apply to every Dine at Home order with {tradingName}. When you tick the box on the order form, you accept them.',
+        ],
+        sections: [
+          {
+            heading: 'Dine at Home',
+            body: [
+              'Dine at Home is a themed four-course menu that I prepare, and that you collect on the evening, at the place and time you chose, and finish at home with my video guide.',
+              'Prices are per person, as shown on each evening’s page. {vat}',
+            ],
+          },
+          {
+            heading: 'Ordering',
+            body: [
+              'You can order for up to {maxDiners} diners on this website. For more, please get in touch. Your places are held as soon as you order, and your order is confirmed when I receive your deposit. I’ll email you each time.',
+            ],
+          },
+          {
+            heading: 'Paying',
+            body: [
+              'A deposit per person, shown on each evening’s page, is paid when you order, by bank transfer. Please pay it within {holdDays} days, quoting the reference I give you. If it hasn’t arrived by then, I may cancel your order and release your places.',
+              'The balance is paid when you collect, [[how: e.g. by cash or cheque]].',
+            ],
+          },
+          {
+            heading: 'Changing your order',
+            body: [
+              'If you need to change the number of diners, the dishes or where you collect, please tell me as soon as you can. I’ll do my best, but can’t promise changes after the order deadline shown on the evening’s page.',
+            ],
+          },
+          {
+            heading: 'If you cancel',
+            body: [
+              '[[Eleanor’s cancellation terms: how much notice gives a full refund of the deposit, and when the deposit is kept.]]',
+              'As each menu is fresh food prepared for a set date, the usual 14-day right to cancel online purchases doesn’t apply (French Consumer Code, article L221-28).',
+            ],
+          },
+          {
+            heading: 'If I cancel',
+            body: [
+              'If I ever have to cancel an evening, I’ll tell you as soon as possible and refund everything you’ve paid, in full.',
+            ],
+          },
+          {
+            heading: 'Collecting',
+            body: [
+              'Please collect at the place and time you chose. The exact address is in your confirmation email. If you can’t make it, tell me as early as you can. [[What happens to a box that isn’t collected: Eleanor to confirm.]]',
+              'Once collected, your food is in your care: please follow the storage advice on the {link:allergens} page and in the box.',
+            ],
+          },
+          {
+            heading: 'Allergies',
+            body: [
+              'Please tell me every diner’s allergies and dietary needs when you order. See the {link:allergens}.',
+            ],
+          },
+          {
+            heading: 'If something isn’t right',
+            body: [
+              'Email me at {email} and I’ll do my best to put it right. If we can’t agree, you can contact the consumer mediator free of charge: {mediator}.',
+              'These terms are governed by French law. How I use your details is explained in the {link:privacy}.',
+            ],
+          },
+        ],
+      },
+    }),
+  },
 }
 
 export type Content = typeof en
@@ -372,6 +671,13 @@ const fr: Content = {
     marketing: 'Oui, envoyez-moi les dates des prochaines box et les autres actualités d’Eleanor Jessica.',
     agreement:
       'Je comprends que ma commande est sous réserve de disponibilité, qu’elle n’est confirmée qu’à réception de l’acompte et que le solde est réglé à la récupération.',
+    agreementLinks: {
+      before: 'J’accepte les ',
+      terms: 'conditions de réservation',
+      middle: ' et j’ai lu la ',
+      privacy: 'politique de confidentialité',
+      after: '.',
+    },
     summaryTitle: 'Votre commande',
     total: 'Total',
     deposit: 'Acompte pour réserver',
@@ -516,6 +822,274 @@ const fr: Content = {
   },
   footer: {
     rights: 'Tous droits réservés.',
+  },
+  legal: {
+    updated: 'Dernière mise à jour',
+    missing: (what: string) => `à compléter : ${what}`,
+    fields: {
+      legalName: 'nom légal complet d’Eleanor',
+      tradingName: 'nom commercial',
+      legalForm: 'forme juridique, ex. micro-entreprise',
+      address: 'adresse professionnelle',
+      siret: 'numéro SIRET',
+      registration: 'immatriculation (RCS ou RNE)',
+      vat: 'régime de TVA, ex. « TVA non applicable, art. 293 B du CGI »',
+      phone: 'numéro de téléphone',
+      email: 'adresse e-mail',
+      insurance: 'assurance professionnelle : assureur et couverture géographique, le cas échéant',
+      mediator: 'médiateur de la consommation : nom et site internet',
+    },
+    links: {
+      legalNotice: 'Mentions légales',
+      privacy: 'Confidentialité',
+      allergens: 'Allergènes',
+      terms: 'Conditions de réservation',
+    },
+    inText: {
+      legalNotice: 'mentions légales',
+      privacy: 'politique de confidentialité',
+      allergens: 'informations sur les allergènes',
+      terms: 'conditions de réservation',
+    },
+    pages: legalPages({
+      legalNotice: {
+        metaTitle: 'Mentions légales',
+        eyebrow: 'Informations',
+        title: 'Mentions légales',
+        intro: [],
+        sections: [
+          {
+            heading: 'Éditeur du site',
+            body: [
+              'Ce site est édité par {legalName}, sous le nom commercial {tradingName}.',
+              [
+                'Forme juridique : {legalForm}',
+                'Adresse : {address}',
+                'SIRET : {siret}',
+                'Immatriculation : {registration}',
+                'TVA : {vat}',
+                'E-mail : {email}',
+                'Téléphone : {phone}',
+              ],
+              'Directrice de la publication : {legalName}.',
+            ],
+          },
+          {
+            heading: 'Hébergement',
+            body: ['Ce site est hébergé par {host}.'],
+          },
+          {
+            heading: 'Assurance',
+            body: ['{insurance}'],
+          },
+          {
+            heading: 'Photographies, textes et logo',
+            body: [
+              'Les photographies, menus, textes et le logo de ce site appartiennent à {legalName}. Merci de ne pas les copier ni les réutiliser sans autorisation.',
+            ],
+          },
+          {
+            heading: 'Vos données personnelles',
+            body: ['L’utilisation de vos données et vos droits sont expliqués dans la {link:privacy}.'],
+          },
+        ],
+      },
+      privacy: {
+        metaTitle: 'Politique de confidentialité',
+        eyebrow: 'Vos données',
+        title: 'Politique de confidentialité',
+        intro: [
+          'Cette politique explique quelles données personnelles je recueille sur ce site et lors de vos commandes, pourquoi, et quels sont vos droits. J’en suis responsable : {legalName}, {address}, {email}.',
+        ],
+        sections: [
+          {
+            heading: 'Ce que je recueille',
+            body: [
+              [
+                'Lors d’une commande : vos nom, numéro de portable et adresse e-mail, les plats choisis, le lieu de récupération, ainsi que les allergies ou régimes alimentaires que vous m’indiquez.',
+                'Votre langue, ainsi que le mode et la date de vos paiements.',
+                'Si vous vous inscrivez à mes actualités : votre adresse e-mail, votre langue, et les dates d’inscription et de confirmation.',
+                'Un relevé des e-mails que je vous envoie (date, type d’e-mail, envoyé ou non).',
+              ],
+            ],
+          },
+          {
+            heading: 'Pourquoi je les utilise',
+            body: [
+              [
+                'Pour préparer votre commande, vous en informer et encaisser le paiement : c’est nécessaire à l’exécution de votre commande.',
+                'Les allergies et régimes alimentaires, qui peuvent constituer des données de santé, servent uniquement à préparer votre repas en toute sécurité. Vous choisissez de me les communiquer et pouvez me demander de les effacer à tout moment.',
+                'Pour vous envoyer les dates des prochaines box et mes actualités, uniquement si vous l’avez demandé et confirmé.',
+                'Pour tenir la comptabilité exigée par la loi française.',
+              ],
+              'Je ne vends jamais vos données et ne les partage avec personne à des fins commerciales.',
+            ],
+          },
+          {
+            heading: 'Mes actualités',
+            body: [
+              'Vous ne recevez mes actualités que si vous cochez la case lors d’une commande, ou si vous saisissez votre e-mail dans un formulaire d’inscription de ce site puis cliquez sur le lien de l’e-mail de confirmation.',
+              'Chaque e-mail d’actualités comporte un lien de désabonnement en bas : un clic suffit. Vous pouvez aussi simplement répondre à l’un de mes e-mails. Les e-mails liés à une commande passée restent envoyés, car ils font partie de votre commande.',
+            ],
+          },
+          {
+            heading: 'Mes prestataires',
+            body: [
+              'Je suis la seule à consulter vos données. Ces sociétés les stockent ou les envoient pour mon compte, uniquement à cette fin :',
+              [
+                'Vercel Inc. (États-Unis) : hébergement de ce site.',
+                'Neon Inc. (États-Unis) : stockage des commandes et des données clients, [[localisation des serveurs à confirmer]].',
+                'Resend Inc. (États-Unis) : envoi de mes e-mails.',
+              ],
+              'Lorsque vos données sont traitées hors de l’Union européenne, ce transfert est encadré par des garanties reconnues par le droit européen, comme le cadre de protection des données UE–États-Unis ou les clauses contractuelles types de la Commission européenne. [[À vérifier pour chaque société.]]',
+            ],
+          },
+          {
+            heading: 'Durée de conservation',
+            body: [
+              [
+                'Commandes et paiements : 10 ans, comme l’exige le droit comptable français.',
+                'Allergies et régimes alimentaires : [[durée, ex. effacés 3 mois après votre soirée]].',
+                'Vos coordonnées : 3 ans après votre dernière commande ou votre dernier contact. [[À confirmer.]]',
+                'Liste d’actualités : jusqu’à votre désabonnement. Je garde ensuite seulement une trace de votre départ, pour ne pas vous réinscrire par erreur.',
+              ],
+            ],
+          },
+          {
+            heading: 'Cookies',
+            body: [
+              'Ce site n’utilise aucun cookie publicitaire ni de suivi. Les visites sont comptées avec Vercel Web Analytics, qui n’utilise pas de cookies et ne vous identifie pas.',
+            ],
+          },
+          {
+            heading: 'Vos droits',
+            body: [
+              'Vous pouvez demander à consulter les données que je détiens sur vous, à les corriger, à les effacer ou à en recevoir une copie, ou vous opposer à leur utilisation. Vous pouvez retirer votre consentement à tout moment. Écrivez-moi simplement à {email}.',
+              'Si ma réponse ne vous satisfait pas, vous pouvez adresser une réclamation à la CNIL (www.cnil.fr).',
+            ],
+          },
+        ],
+      },
+      allergens: {
+        metaTitle: 'Allergènes',
+        eyebrow: 'Votre sécurité',
+        title: 'Allergènes',
+        intro: [
+          'Chaque menu est préparé dans ma propre cuisine, où les quatorze allergènes majeurs sont manipulés.',
+        ],
+        sections: [
+          {
+            heading: 'Les quatorze allergènes majeurs',
+            body: [
+              [
+                'Céréales contenant du gluten',
+                'Crustacés',
+                'Œufs',
+                'Poissons',
+                'Arachides',
+                'Soja',
+                'Lait',
+                'Fruits à coque',
+                'Céleri',
+                'Moutarde',
+                'Graines de sésame',
+                'Sulfites',
+                'Lupin',
+                'Mollusques',
+              ],
+            ],
+          },
+          {
+            heading: 'Prévenez-moi en commandant',
+            body: [
+              'Merci d’indiquer les allergies et régimes alimentaires de chaque convive dans le formulaire de commande. Je vous dirai quels plats sont concernés et les adapterai lorsque c’est possible en toute sécurité. Sinon, je vous préviendrai avant que votre commande ne soit confirmée.',
+              'Vous pouvez me demander à tout moment avant votre soirée la liste complète et écrite des allergènes de chaque plat. [[Également indiquée sur l’étiquette de chaque box ? À confirmer par Eleanor.]]',
+            ],
+          },
+          {
+            heading: 'Ce que je ne peux pas garantir',
+            body: [
+              'Je fais très attention, mais ma cuisine n’est pas exempte d’allergènes : je ne peux donc pas garantir l’absence totale de traces dans un plat. En cas d’allergie sévère, parlez-m’en avant de commander.',
+            ],
+          },
+          {
+            heading: 'Après la récupération',
+            body: [
+              '[[Conseils de conservation et de finition, ex. garder la box au frais et la déguster le soir même. À fournir par Eleanor.]]',
+            ],
+          },
+        ],
+      },
+      terms: {
+        metaTitle: 'Conditions de réservation',
+        eyebrow: 'Dîner à la maison',
+        title: 'Conditions de réservation',
+        intro: [
+          'Ces conditions s’appliquent à toute commande Dîner à la maison auprès de {tradingName}. En cochant la case du formulaire de commande, vous les acceptez.',
+        ],
+        sections: [
+          {
+            heading: 'Dîner à la maison',
+            body: [
+              'Dîner à la maison est un menu à thème en quatre plats que je prépare, que vous récupérez le soir même au lieu et à l’heure choisis, et que vous terminez chez vous grâce à mon guide vidéo.',
+              'Les prix s’entendent par personne, comme indiqué sur la page de chaque soirée. {vat}',
+            ],
+          },
+          {
+            heading: 'Commander',
+            body: [
+              'Vous pouvez commander jusqu’à {maxDiners} couverts sur ce site. Au-delà, contactez-moi. Vos places sont réservées dès la commande, et votre commande est confirmée à réception de l’acompte. Je vous écris à chaque étape.',
+            ],
+          },
+          {
+            heading: 'Paiement',
+            body: [
+              'Un acompte par personne, indiqué sur la page de chaque soirée, est réglé à la commande par virement bancaire. Merci de le régler sous {holdDays} jours, en indiquant la référence que je vous donne. Passé ce délai, je peux annuler votre commande et libérer vos places.',
+              'Le solde est réglé à la récupération, [[comment : ex. en espèces ou par chèque]].',
+            ],
+          },
+          {
+            heading: 'Modifier votre commande',
+            body: [
+              'Pour modifier le nombre de couverts, les plats ou le lieu de récupération, prévenez-moi dès que possible. Je ferai de mon mieux, sans pouvoir garantir de modification après la date limite de commande indiquée sur la page de la soirée.',
+            ],
+          },
+          {
+            heading: 'Si vous annulez',
+            body: [
+              '[[Conditions d’annulation d’Eleanor : délai de prévenance pour un remboursement intégral de l’acompte, et cas où l’acompte est conservé.]]',
+              'Chaque menu étant composé de denrées fraîches préparées pour une date précise, le droit de rétractation de 14 jours ne s’applique pas (Code de la consommation, article L221-28).',
+            ],
+          },
+          {
+            heading: 'Si j’annule',
+            body: [
+              'Si je dois annuler une soirée, je vous préviens au plus vite et vous rembourse intégralement les sommes versées.',
+            ],
+          },
+          {
+            heading: 'Récupération',
+            body: [
+              'Merci de venir au lieu et à l’heure choisis. L’adresse exacte figure dans votre e-mail de confirmation. En cas d’empêchement, prévenez-moi le plus tôt possible. [[Ce qu’il advient d’une box non récupérée : à confirmer par Eleanor.]]',
+              'Une fois récupéré, votre repas est sous votre responsabilité : suivez les conseils de conservation de la page {link:allergens} et ceux joints à la box.',
+            ],
+          },
+          {
+            heading: 'Allergies',
+            body: [
+              'Merci d’indiquer les allergies et régimes alimentaires de chaque convive en commandant. Voir les {link:allergens}.',
+            ],
+          },
+          {
+            heading: 'En cas de problème',
+            body: [
+              'Écrivez-moi à {email} et je ferai de mon mieux pour y remédier. À défaut d’accord, vous pouvez saisir gratuitement le médiateur de la consommation : {mediator}.',
+              'Ces conditions sont soumises au droit français. L’utilisation de vos données est expliquée dans la {link:privacy}.',
+            ],
+          },
+        ],
+      },
+    }),
   },
 }
 

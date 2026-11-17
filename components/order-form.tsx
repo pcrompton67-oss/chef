@@ -7,6 +7,7 @@ import { formatMoney, formatTime, localePath, type Locale } from '@/lib/i18n'
 import type { EventDetail } from '@/lib/events'
 import { buttonStyles } from '@/components/site/button-styles'
 import { cn } from '@/lib/utils'
+import { LEGAL_PATHS } from '@/lib/site'
 
 type Props = {
   event: Pick<
@@ -342,7 +343,13 @@ export function OrderForm({ event, locale, maxDiners }: Props) {
               aria-invalid={!!errors.agreed}
               className="tick mt-0.5"
             />
-            <span>{c.agreement}</span>
+            <span>
+              {c.agreement} {c.agreementLinks.before}
+              <AgreementLink href={localePath(LEGAL_PATHS.terms, locale)}>{c.agreementLinks.terms}</AgreementLink>
+              {c.agreementLinks.middle}
+              <AgreementLink href={localePath(LEGAL_PATHS.privacy, locale)}>{c.agreementLinks.privacy}</AgreementLink>
+              {c.agreementLinks.after}
+            </span>
           </label>
           <ErrorText>{errors.agreed}</ErrorText>
         </div>
@@ -527,5 +534,14 @@ function Row({
         {children}
       </dd>
     </div>
+  )
+}
+
+/** Opens a legal page in a new tab, so the order being filled in isn't lost. */
+function AgreementLink({ href, children }: { href: string; children: ReactNode }) {
+  return (
+    <a href={href} target="_blank" rel="noopener" className="border-b border-gold hover:text-gold-deep">
+      {children}
+    </a>
   )
 }
