@@ -45,7 +45,13 @@ export type EmailOrder = {
   courses: { name: string; dishes: { name: string; quantity: number | null }[] }[]
 }
 
-export type BankDetails = { accountName: string; iban: string; bic: string }
+export type BankDetails = {
+  accountName: string
+  iban: string
+  bic: string
+  /** Days the customer has to pay a transfer deposit (Console → Settings); not mentioned if absent. */
+  holdDays?: number
+}
 
 export type RenderedEmail = { subject: string; html: string; text: string }
 
@@ -77,7 +83,7 @@ export function renderEmail(kind: EmailKind, o: EmailOrder, bank: BankDetails): 
       b.heading(c.received.payTitle)
       if (o.paymentMethod === 'bank_transfer') {
         if (hasBankDetails(bank)) {
-          b.para(c.received.transferIntro(money(o.depositCents)))
+          b.para(c.received.transferIntro(money(o.depositCents), bank.holdDays))
           b.table([
             [c.received.accountName, bank.accountName.trim()],
             [c.received.iban, bank.iban.trim()],

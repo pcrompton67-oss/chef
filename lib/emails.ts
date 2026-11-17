@@ -19,8 +19,8 @@ export async function getEmailSettings(): Promise<EmailSettings> {
     query<{ value: { remindersOn?: boolean } }>(`SELECT value FROM settings WHERE key = 'emails'`),
     getBusinessSettings(),
   ])
-  const { accountName, iban, bic } = business
-  return { accountName, iban, bic, remindersOn: row?.value?.remindersOn !== false }
+  const { accountName, iban, bic, holdDays } = business
+  return { accountName, iban, bic, holdDays, remindersOn: row?.value?.remindersOn !== false }
 }
 
 /** Saves the reminders switch (bank details are saved in Console → Settings). */

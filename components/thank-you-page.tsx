@@ -95,7 +95,7 @@ function TransferDetails({
     <section className="mx-auto mt-12 max-w-md border border-gold/60 px-5 py-7 text-left sm:px-8">
       <h2 className="caps text-center text-gold-deep">{r.payTitle}</h2>
       <p className="mt-4 text-center text-charcoal">
-        {r.transferIntro(amount)} {c.thanks.payWithin(holdDays)}
+        {r.transferIntro(amount, holdDays)}
       </p>
       <dl className="mt-6 space-y-3">
         {rows.map(([label, value]) => (

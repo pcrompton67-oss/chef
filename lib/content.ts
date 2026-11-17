@@ -156,9 +156,7 @@ const en = {
       'Your order is confirmed as soon as the deposit has been received, and the balance is paid on collection.',
     ],
     reference: (ref: string) => `Order no. ${ref}`,
-    // Bank details box (labels shared with the "request received" email, under email.received).
-    payWithin: (days: number) =>
-      days === 1 ? 'Please pay within a day of ordering.' : `Please pay within ${days} days of ordering.`,
+    // The bank details box uses the "request received" email's wording (email.received).
     back: 'Back to the evening',
   },
   notify: {
@@ -192,7 +190,11 @@ const en = {
       intro: (title: string, date: string) =>
         `Thank you for your order for ${title} on ${date}. Your places are held for you, and your booking is confirmed as soon as the deposit arrives.`,
       payTitle: 'Your deposit',
-      transferIntro: (amount: string) => `Please pay the deposit of ${amount} by bank transfer:`,
+      // `days` (from Console → Settings) adds how long they have to pay.
+      transferIntro: (amount: string, days?: number) =>
+        `Please pay the deposit of ${amount} by bank transfer${
+          !days ? '' : days === 1 ? ' within a day of ordering' : ` within ${days} days of ordering`
+        }:`,
       accountName: 'Account name',
       iban: 'IBAN',
       bic: 'BIC',
@@ -367,10 +369,6 @@ const fr: Content = {
       'Votre commande est confirmée dès réception de l’acompte ; le solde est réglé à la récupération.',
     ],
     reference: (ref: string) => `Commande n° ${ref}`,
-    payWithin: (days: number) =>
-      days === 1
-        ? 'Merci de régler dans la journée qui suit votre commande.'
-        : `Merci de régler dans les ${days} jours qui suivent votre commande.`,
     back: 'Retour à la soirée',
   },
   notify: {
@@ -404,7 +402,10 @@ const fr: Content = {
       intro: (title: string, date: string) =>
         `Merci pour votre commande pour ${title}, le ${date.charAt(0).toLowerCase() + date.slice(1)}. Vos places sont réservées, et votre réservation est confirmée dès réception de l’acompte.`,
       payTitle: 'Votre acompte',
-      transferIntro: (amount: string) => `Merci de régler l’acompte de ${amount} par virement bancaire :`,
+      transferIntro: (amount: string, days?: number) =>
+        `Merci de régler l’acompte de ${amount} par virement bancaire${
+          !days ? '' : days === 1 ? ' dans la journée qui suit votre commande' : ` dans les ${days} jours qui suivent votre commande`
+        } :`,
       accountName: 'Titulaire du compte',
       iban: 'IBAN',
       bic: 'BIC',
