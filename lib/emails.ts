@@ -1,5 +1,16 @@
 import { query } from '@/lib/db'
-import { renderEmail, type BankDetails, type EmailKind, type EmailOrder } from '@/lib/email-templates'
+import {
+  renderEmail,
+  renderSignupConfirm,
+  renderWeeklyList,
+  type BankDetails,
+  type EmailKind,
+  type EmailOrder,
+  type OrderEmailKind,
+  type RenderedEmail,
+} from '@/lib/email-templates'
+import type { Locale } from '@/lib/i18n'
+import { mailingListCsv, weeklyListSummary } from '@/lib/customers'
 import { getBusinessSettings } from '@/lib/settings'
 import { EMAIL_FROM, EMAIL_REPLY_TO, OWNER_EMAIL, SITE_URL } from '@/lib/site'
 
@@ -10,26 +21,34 @@ import { EMAIL_FROM, EMAIL_REPLY_TO, OWNER_EMAIL, SITE_URL } from '@/lib/site'
  * Nothing here ever throws: a failed email must never break an order.
  */
 
-/* ---------- Settings (reminders on/off; bank details come from Console → Settings) ---------- */
+/* ---------- Settings (reminders and weekly list on/off; bank details come from Console → Settings) ---------- */
 
-export type EmailSettings = BankDetails & { remindersOn: boolean }
+export type EmailSettings = BankDetails & { remindersOn: boolean; weeklyListOn: boolean }
 
 export async function getEmailSettings(): Promise<EmailSettings> {
   const [[row], business] = await Promise.all([
-    query<{ value: { remindersOn?: boolean } }>(`SELECT value FROM settings WHERE key = 'emails'`),
+    query<{ value: { remindersOn?: boolean; weeklyListOn?: boolean } }>(`SELECT value FROM settings WHERE key = 'emails'`),
     getBusinessSettings(),
   ])
   const { accountName, iban, bic, holdDays } = business
-  return { accountName, iban, bic, holdDays, remindersOn: row?.value?.remindersOn !== false }
+  return {
+    accountName,
+    iban,
+    bic,
+    holdDays,
+    remindersOn: row?.value?.remindersOn !== false,
+    weeklyListOn: row?.value?.weeklyListOn !== false,
+  }
 }
 
-/** Saves the reminders switch (bank details are saved in Console → Settings). */
+/** Saves the reminders and weekly-list switches (bank details are saved in Console → Settings). */
 export async function saveEmailSettings(raw: unknown): Promise<EmailSettings> {
   const b = (raw ?? {}) as Record<string, unknown>
   await query(
-    `INSERT INTO settings (key, value) VALUES ('emails', jsonb_build_object('remindersOn', $1::boolean))
+    `INSERT INTO settings (key, value)
+     VALUES ('emails', jsonb_build_object('remindersOn', $1::boolean, 'weeklyListOn', $2::boolean))
      ON CONFLICT (key) DO UPDATE SET value = settings.value || EXCLUDED.value, updated_at = now()`,
-    [b.remindersOn !== false],
+    [b.remindersOn !== false, b.weeklyListOn !== false],
   )
   return getEmailSettings()
 }
@@ -81,13 +100,21 @@ async function loadOrder(orderId: string): Promise<(EmailOrder & { eventId: stri
 
 /* ---------- Sending ---------- */
 
-async function send(
-  kind: EmailKind,
-  to: string,
-  o: EmailOrder & { eventId: string },
-  bank: BankDetails,
-): Promise<'sent' | 'failed' | 'skipped'> {
-  const { subject, html, text } = renderEmail(kind, o, bank)
+type Delivery = {
+  kind: EmailKind
+  to: string
+  email: RenderedEmail
+  orderId?: string | null
+  eventId?: string | null
+  /** Resend ignores a repeat with the same key for 24 hours: a second safety net. */
+  idempotencyKey: string
+  headers?: Record<string, string>
+  attachments?: { filename: string; content: string }[] // content in base64
+}
+
+/** Sends one email through Resend (unless sending is off or it's a test address) and logs it. */
+async function deliver(d: Delivery): Promise<'sent' | 'failed' | 'skipped'> {
+  const { subject, html, text } = d.email
   const key = process.env.RESEND_API_KEY
   let status: 'sent' | 'failed' | 'skipped' = 'skipped'
   let providerId: string | null = null
@@ -95,7 +122,7 @@ async function send(
 
   if (!key) {
     error = 'RESEND_API_KEY is not set'
-  } else if (/@example\.com$/i.test(to)) {
+  } else if (/@example\.com$/i.test(d.to)) {
     error = 'Test address (@example.com)'
   } else {
     try {
@@ -104,25 +131,17 @@ async function send(
         headers: {
           Authorization: `Bearer ${key}`,
           'Content-Type': 'application/json',
-          // Resend ignores a repeat with the same key for 24 hours: a second safety net.
-          'Idempotency-Key': `${kind}-${o.id}`,
+          'Idempotency-Key': d.idempotencyKey,
         },
         body: JSON.stringify({
           from: EMAIL_FROM,
-          to: [to],
+          to: [d.to],
           reply_to: EMAIL_REPLY_TO,
           subject,
           html,
           text,
-          // Lets email apps show their own "Unsubscribe" button (customer emails, mailing list only).
-          ...(kind !== 'owner' && o.unsubscribeToken
-            ? {
-                headers: {
-                  'List-Unsubscribe': `<${SITE_URL}/api/unsubscribe?t=${o.unsubscribeToken}>`,
-                  'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
-                },
-              }
-            : {}),
+          ...(d.headers ? { headers: d.headers } : {}),
+          ...(d.attachments ? { attachments: d.attachments } : {}),
         }),
       })
       const body = (await res.json().catch(() => ({}))) as { id?: string; message?: string }
@@ -142,10 +161,35 @@ async function send(
   await query(
     `INSERT INTO email_log (kind, to_email, subject, order_id, event_id, status, provider_id, error)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-    [kind, to, subject, o.id, o.eventId, status, providerId, error],
+    [d.kind, d.to, subject, d.orderId ?? null, d.eventId ?? null, status, providerId, error],
   ).catch((err) => console.error('email_log insert failed', err))
-  if (status === 'failed') console.error(`Email ${kind} for order ${o.id} failed: ${error}`)
+  if (status === 'failed') console.error(`Email ${d.kind} to ${d.to} failed: ${error}`)
   return status
+}
+
+/** An email about one order. */
+function send(
+  kind: OrderEmailKind,
+  to: string,
+  o: EmailOrder & { eventId: string },
+  bank: BankDetails,
+): Promise<'sent' | 'failed' | 'skipped'> {
+  return deliver({
+    kind,
+    to,
+    email: renderEmail(kind, o, bank),
+    orderId: o.id,
+    eventId: o.eventId,
+    idempotencyKey: `${kind}-${o.id}`,
+    // Lets email apps show their own "Unsubscribe" button (customer emails, mailing list only).
+    headers:
+      kind !== 'owner' && o.unsubscribeToken
+        ? {
+            'List-Unsubscribe': `<${SITE_URL}/api/unsubscribe?t=${o.unsubscribeToken}>`,
+            'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+          }
+        : undefined,
+  })
 }
 
 /** Runs an email job without ever letting an error escape. */
@@ -209,6 +253,43 @@ export async function sendReminders(): Promise<{ sent: number; failed: number; s
     if (o) tally[await send('reminder', o.email, o, settings)]++
   }
   return tally
+}
+
+/* ---------- Mailing list (issue #10) ---------- */
+
+/** The "please confirm" email after someone uses a sign-up box. */
+export function emailSignupConfirmation(to: string, locale: Locale, token: string) {
+  return safely('signup confirmation', () =>
+    deliver({
+      kind: 'signup',
+      to,
+      email: renderSignupConfirm(locale, token),
+      idempotencyKey: `signup-${token}-${new Date().toISOString().slice(0, 13)}`,
+    }),
+  )
+}
+
+/**
+ * Eleanor's Monday email: who joined and left the list this week, with the
+ * full list attached. Sent once a week at most, even if the run repeats.
+ */
+export async function sendWeeklyList(): Promise<{ status: 'sent' | 'failed' | 'skipped' | 'off' | 'already sent' }> {
+  const settings = await getEmailSettings()
+  if (!settings.weeklyListOn) return { status: 'off' }
+  const [recent] = await query(
+    `SELECT 1 FROM email_log WHERE kind = 'weekly' AND status IN ('sent', 'skipped') AND sent_at > now() - interval '5 days'`,
+  )
+  if (recent) return { status: 'already sent' }
+  const [summary, csv] = await Promise.all([weeklyListSummary(), mailingListCsv()])
+  const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' })
+  const status = await deliver({
+    kind: 'weekly',
+    to: OWNER_EMAIL,
+    email: renderWeeklyList(summary),
+    idempotencyKey: `weekly-${today}`,
+    attachments: [{ filename: `mailing-list-${today}.csv`, content: Buffer.from(csv, 'utf8').toString('base64') }],
+  })
+  return { status }
 }
 
 /* ---------- The log, for the console ---------- */

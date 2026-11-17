@@ -2,22 +2,40 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { t } from '@/lib/content'
 import { localePath, type Locale } from '@/lib/i18n'
 import { buttonStyles } from '@/components/site/button-styles'
 
+type Wording = {
+  text: string
+  button: string
+  done: string
+  invalid: string
+  error: string
+  back: string
+}
+
 /**
- * The unsubscribe page (issue #10), reached from the link in emails. It asks
- * for a click rather than unsubscribing on opening, because some email
- * services open links by themselves to check them.
+ * The one-button pages reached from email links (issue #10): unsubscribing
+ * (/unsubscribe) and confirming a sign-up (/confirm-subscription). They ask
+ * for a click rather than acting on opening, because some email services
+ * open links by themselves to check them.
  */
-export function UnsubscribeForm({ locale, token }: { locale: Locale; token: string }) {
-  const c = t(locale).unsubscribe
+export function TokenActionForm({
+  locale,
+  token,
+  endpoint,
+  c,
+}: {
+  locale: Locale
+  token: string
+  endpoint: string
+  c: Wording
+}) {
   const [state, setState] = useState<'idle' | 'sending' | 'done' | 'invalid' | 'error'>(token ? 'idle' : 'invalid')
 
-  async function unsubscribe() {
+  async function act() {
     setState('sending')
-    const res = await fetch('/api/unsubscribe', {
+    const res = await fetch(endpoint, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ token }),
@@ -37,7 +55,7 @@ export function UnsubscribeForm({ locale, token }: { locale: Locale; token: stri
           <p className="font-display text-xl leading-relaxed text-charcoal">{c.text}</p>
           <button
             type="button"
-            onClick={unsubscribe}
+            onClick={act}
             disabled={state === 'sending'}
             className={buttonStyles('solid', 'mt-10')}
           >

@@ -13,7 +13,7 @@ import { buttonStyles } from '@/components/site/button-styles'
  */
 export function NotifyForm({ locale, eventSlug }: { locale: Locale; eventSlug?: string }) {
   const n = t(locale).notify
-  const c = eventSlug ? n : { ...n, title: n.newsTitle, button: n.newsButton, done: n.newsDone }
+  const c = eventSlug ? n : { ...n, title: n.newsTitle, button: n.newsButton }
   const [email, setEmail] = useState('')
   const [state, setState] = useState<'idle' | 'sending' | 'done' | 'error'>('idle')
 

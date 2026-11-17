@@ -1,13 +1,20 @@
-import { NextResponse } from 'next/server'
-import { addSignup } from '@/lib/customers'
+import { after, NextResponse } from 'next/server'
+import { requestSignup } from '@/lib/customers'
+import { emailSignupConfirmation } from '@/lib/emails'
 
-/** "Tell me about the next one" sign-up (joins the mailing list). */
+/**
+ * A sign-up box (home page, or "tell me about the next one" on a sold-out
+ * evening). Sends the confirmation email; they join the mailing list only
+ * once they click its link (/confirm-subscription).
+ */
 export async function POST(req: Request) {
   const body = (await req.json().catch(() => ({}))) as { email?: unknown; locale?: unknown; event?: unknown }
-  const ok = await addSignup(
+  const locale = body.locale === 'fr' ? 'fr' : 'en'
+  const res = await requestSignup(
     typeof body.email === 'string' ? body.email : '',
-    body.locale === 'fr' ? 'fr' : 'en',
+    locale,
     typeof body.event === 'string' ? body.event : '',
   )
-  return NextResponse.json({ ok }, { status: ok ? 200 : 400 })
+  if (res.ok && res.send) after(() => emailSignupConfirmation(res.email, locale, res.token))
+  return NextResponse.json({ ok: res.ok }, { status: res.ok ? 200 : 400 })
 }
