@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { getStoredPin } from '@/components/pin-gate'
 import { cn } from '@/lib/utils'
 import { EventsTab } from '@/components/manager/events-tab'
+import { OrdersTab } from '@/components/manager/orders-tab'
 
 // Helpers for console sections that talk to the API: every request carries
 // the verified PIN in the `x-pin` header (checked in lib/pins.ts).
@@ -32,6 +33,7 @@ export async function send(url: string, method: string, body?: unknown) {
 // Console sections. New sections (menus, bookings, …) are added here.
 const TABS = [
   { id: 'overview', label: 'Overview' },
+  { id: 'orders', label: 'Orders' },
   { id: 'events', label: 'Events' },
 ] as const
 type Tab = (typeof TABS)[number]['id']
@@ -96,6 +98,7 @@ export function ManagerConsole() {
 
       <main className="mx-auto max-w-3xl px-4 py-8">
         {tab === 'overview' ? <Overview /> : null}
+        {tab === 'orders' ? <OrdersTab /> : null}
         {tab === 'events' ? <EventsTab /> : null}
       </main>
     </div>
@@ -108,8 +111,8 @@ function Overview() {
       <h2 className="text-3xl text-charcoal">Welcome</h2>
       <span className="rule my-5" aria-hidden />
       <p className="mx-auto max-w-md leading-relaxed text-stone">
-        Use Events to set up and run your Dine at Home evenings. Orders and
-        printouts will appear here as they are built.
+        Use Orders for the day-to-day bookings and Events to set up your Dine at
+        Home evenings. Printouts will appear here as they are built.
       </p>
     </div>
   )
