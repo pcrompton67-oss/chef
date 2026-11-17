@@ -39,8 +39,8 @@ export async function send(url: string, method: string, body?: unknown) {
 const TABS = [
   { id: 'events', label: 'Events' },
   { id: 'orders', label: 'Orders' },
-  { id: 'customers', label: 'Customers' },
   { id: 'printouts', label: 'Printouts' },
+  { id: 'customers', label: 'Customers' },
   { id: 'emails', label: 'Emails' },
   { id: 'settings', label: 'Settings' },
 ] as const
