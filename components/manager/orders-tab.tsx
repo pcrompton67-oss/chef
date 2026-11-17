@@ -322,6 +322,11 @@ function OrderDetail({
             >
               Deposit received
             </button>
+            {!o.email ? (
+              <span className="basis-full text-sm text-stone">
+                No email address: the customer won’t get a confirmation email, so let them know yourself.
+              </span>
+            ) : null}
           </div>
         ) : null}
 

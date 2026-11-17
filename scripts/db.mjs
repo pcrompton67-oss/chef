@@ -2,6 +2,8 @@
 //   pnpm db:migrate      apply any new files in migrations/ (in number order)
 //   pnpm db:seed         add (or refresh) the test data in seeds/test-data.sql
 //   pnpm db:unseed       remove all test data
+//   pnpm db:deploy       what Vercel runs before each build: migrate, but only
+//                        when publishing the live site (VERCEL_ENV=production)
 // Uses DATABASE_URL, read from .env.local if present (`vercel env pull .env.local`).
 
 import { readdir, readFile } from 'node:fs/promises'
@@ -11,9 +13,14 @@ import pg from 'pg'
 const root = new URL('..', import.meta.url).pathname
 const command = process.argv[2]
 
-if (!['migrate', 'seed', 'unseed'].includes(command)) {
-  console.error('Usage: node scripts/db.mjs migrate | seed | unseed')
+if (!['migrate', 'deploy', 'seed', 'unseed'].includes(command)) {
+  console.error('Usage: node scripts/db.mjs migrate | deploy | seed | unseed')
   process.exit(1)
+}
+// Preview deployments share the live database, so they must never change it.
+if (command === 'deploy' && process.env.VERCEL_ENV !== 'production') {
+  console.log(`Database updates skipped: not the live site (VERCEL_ENV=${process.env.VERCEL_ENV ?? 'unset'}).`)
+  process.exit(0)
 }
 if (!process.env.DATABASE_URL) {
   console.error('DATABASE_URL is not set. Run `vercel env pull .env.local` first.')
@@ -70,7 +77,7 @@ async function runSeedFile(name) {
 }
 
 try {
-  if (command === 'migrate') {
+  if (command === 'migrate' || command === 'deploy') {
     await migrate()
   } else if (command === 'seed') {
     const remove = await runSeedFile('remove-test-data.sql')
