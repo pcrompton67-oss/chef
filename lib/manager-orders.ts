@@ -1,5 +1,6 @@
 import { query, transaction } from '@/lib/db'
 import { getManagerEvent } from '@/lib/manager-events'
+import { getBusinessSettings } from '@/lib/settings'
 import type { ConsoleOrder, ManualOrderInput, OrderAction } from '@/lib/order-editing'
 
 /**
@@ -14,6 +15,7 @@ const TAKES_PLACES = `(o.status = 'confirmed'
 
 export async function listOrders(eventId: string): Promise<ConsoleOrder[] | null> {
   if (!/^\d+$/.test(eventId)) return null
+  const { holdDays } = await getBusinessSettings()
   return query<ConsoleOrder>(
     `SELECT o.id::text, to_char(o.created_at AT TIME ZONE 'Europe/Paris', 'YYYY-MM-DD"T"HH24:MI') AS "createdAt",
             o.name, o.mobile, o.email, o.diners,
@@ -21,6 +23,11 @@ export async function listOrders(eventId: string): Promise<ConsoleOrder[] | null
             COALESCE(o.allergies, '') AS allergies, COALESCE(o.notes, '') AS notes, o.language, o.source,
             o.payment_method AS "paymentMethod", o.status,
             ${TAKES_PLACES} AS "takesPlaces",
+            -- Overdue (issue #6): a transfer deposit not paid within the days set in Settings.
+            -- Its places stay held until Eleanor confirms the deposit or releases them.
+            (o.payment_method = 'bank_transfer' AND o.status IN ('held', 'awaiting_transfer')
+              AND o.deposit_paid_at IS NULL AND o.deposit_cents > 0 AND o.collected_at IS NULL
+              AND o.created_at < now() - make_interval(days => $2)) AS overdue,
             o.total_cents AS "totalCents", o.deposit_cents AS "depositCents",
             o.deposit_paid_at IS NOT NULL AS "depositPaid",
             o.balance_cents AS "balanceCents", o.balance_paid_at IS NOT NULL AS "balancePaid",
@@ -32,7 +39,7 @@ export async function listOrders(eventId: string): Promise<ConsoleOrder[] | null
        FROM orders o JOIN collection_points p ON p.id = o.collection_point_id
       WHERE o.event_id = $1
       ORDER BY o.created_at DESC, o.id DESC`,
-    [eventId],
+    [eventId, holdDays],
   )
 }
 

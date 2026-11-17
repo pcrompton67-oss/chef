@@ -140,6 +140,7 @@ function Summary({ event, orders }: { event: EditableEvent; orders: ConsoleOrder
   const left = event.capacity - taken
   const live = orders.filter((o) => o.takesPlaces)
   const owedDeposits = live.filter((o) => !o.depositPaid && o.depositCents > 0).length
+  const overdue = orders.filter((o) => o.overdue).length
   const refunds = orders.filter((o) => o.refundStatus === 'requested' || o.refundStatus === 'partial').length
 
   return (
@@ -153,6 +154,7 @@ function Summary({ event, orders }: { event: EditableEvent; orders: ConsoleOrder
       {owedDeposits || refunds ? (
         <p className="text-sm text-charcoal">
           {owedDeposits ? `${owedDeposits} waiting for a deposit` : ''}
+          {overdue ? <span className="text-destructive"> ({overdue} overdue)</span> : ''}
           {owedDeposits && refunds ? ' · ' : ''}
           {refunds ? <span className="text-destructive">{refunds} refund{refunds === 1 ? '' : 's'} to send</span> : ''}
         </p>
@@ -337,6 +339,28 @@ function OrderDetail({
           </div>
         ) : null}
 
+        {o.overdue ? (
+          <div className="flex flex-wrap items-center gap-3 border-l-2 border-destructive/60 pl-3">
+            <span className="basis-full text-sm text-charcoal">
+              The deposit is overdue. {o.name}’s {o.diners} place{o.diners === 1 ? ' is' : 's are'} still held until
+              you confirm the deposit or release them.
+            </span>
+            <button
+              type="button"
+              className={buttonStyles('outline', 'border-destructive/60 px-5 py-2 text-destructive hover:border-destructive hover:text-destructive')}
+              disabled={busy}
+              onClick={() =>
+                act(
+                  { action: 'cancel' },
+                  `Release ${o.name}’s ${o.diners} place${o.diners === 1 ? '' : 's'}? The order will be cancelled.`,
+                )
+              }
+            >
+              Release places
+            </button>
+          </div>
+        ) : null}
+
         <div className="flex flex-wrap gap-3">
           {o.collected ? (
             <button type="button" className={buttonStyles('text')} disabled={busy} onClick={() => act({ action: 'undo_collected' })}>
@@ -353,7 +377,7 @@ function OrderDetail({
               Refund sent
             </button>
           ) : null}
-          {active ? (
+          {active && !o.overdue ? (
             <button
               type="button"
               className={buttonStyles('outline', 'border-destructive/60 px-5 py-2 text-destructive hover:border-destructive hover:text-destructive')}
@@ -661,6 +685,7 @@ function statusOf(o: ConsoleOrder): [string, 'good' | 'alert' | 'muted' | 'plain
   if (o.status === 'expired') return ['Expired', 'muted']
   if (o.collected) return ['Collected', 'muted']
   if (o.depositPaid) return ['Deposit paid', 'good']
+  if (o.overdue) return ['Deposit overdue', 'alert']
   return ['Waiting for deposit', 'plain']
 }
 

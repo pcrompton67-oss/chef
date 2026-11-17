@@ -10,8 +10,9 @@ import type { Locale } from '@/lib/i18n'
  * last places at the same moment are handled one after the other: the second
  * one sees the first one's order and is refused if there's no room left.
  *
- * For now an order waits for a bank transfer and keeps its places until
- * Eleanor confirms or cancels it (no automatic expiry yet).
+ * A website order waits for a bank transfer and keeps its places until
+ * Eleanor confirms or releases it. Places are never freed automatically: after
+ * the days set in Console → Settings it is only flagged "overdue" (issue #6).
  */
 
 /** Most diners one website order can be for. */
@@ -221,4 +222,21 @@ export async function addNotifySignup(email: string, locale: Locale): Promise<bo
     [clean, locale],
   )
   return true
+}
+
+/**
+ * For the thank-you page: the deposit still to be paid by bank transfer on
+ * this order, or null if there is none (already paid, cancelled, another
+ * payment method, or not an order for this evening). Only the amount is
+ * returned, never who ordered, since the address only carries the order number.
+ */
+export async function transferDepositDue(eventSlug: string, orderId: string): Promise<number | null> {
+  if (!/^\d{1,10}$/.test(orderId)) return null
+  const [row] = await query<{ depositCents: number }>(
+    `SELECT o.deposit_cents AS "depositCents" FROM orders o JOIN events e ON e.id = o.event_id
+      WHERE o.id = $1 AND e.slug = $2 AND o.payment_method = 'bank_transfer'
+        AND o.status IN ('held', 'awaiting_transfer') AND o.deposit_paid_at IS NULL AND o.deposit_cents > 0`,
+    [orderId, eventSlug],
+  )
+  return row ? row.depositCents : null
 }

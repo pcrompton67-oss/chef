@@ -1,5 +1,6 @@
 import { query } from '@/lib/db'
 import { renderEmail, type BankDetails, type EmailKind, type EmailOrder } from '@/lib/email-templates'
+import { getBusinessSettings } from '@/lib/settings'
 import { EMAIL_FROM, EMAIL_REPLY_TO, OWNER_EMAIL } from '@/lib/site'
 
 /**
@@ -9,32 +10,28 @@ import { EMAIL_FROM, EMAIL_REPLY_TO, OWNER_EMAIL } from '@/lib/site'
  * Nothing here ever throws: a failed email must never break an order.
  */
 
-/* ---------- Settings (bank details, reminders on/off) ---------- */
+/* ---------- Settings (reminders on/off; bank details come from Console → Settings) ---------- */
 
 export type EmailSettings = BankDetails & { remindersOn: boolean }
 
-const DEFAULT_SETTINGS: EmailSettings = { accountName: '', iban: '', bic: '', remindersOn: true }
-
 export async function getEmailSettings(): Promise<EmailSettings> {
-  const [row] = await query<{ value: Partial<EmailSettings> }>(`SELECT value FROM settings WHERE key = 'emails'`)
-  return { ...DEFAULT_SETTINGS, ...(row?.value ?? {}) }
+  const [[row], business] = await Promise.all([
+    query<{ value: { remindersOn?: boolean } }>(`SELECT value FROM settings WHERE key = 'emails'`),
+    getBusinessSettings(),
+  ])
+  const { accountName, iban, bic } = business
+  return { accountName, iban, bic, remindersOn: row?.value?.remindersOn !== false }
 }
 
+/** Saves the reminders switch (bank details are saved in Console → Settings). */
 export async function saveEmailSettings(raw: unknown): Promise<EmailSettings> {
   const b = (raw ?? {}) as Record<string, unknown>
-  const t = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '')
-  const value: EmailSettings = {
-    accountName: t(b.accountName, 100),
-    iban: t(b.iban, 50).toUpperCase(),
-    bic: t(b.bic, 20).toUpperCase(),
-    remindersOn: b.remindersOn !== false,
-  }
   await query(
-    `INSERT INTO settings (key, value) VALUES ('emails', $1::jsonb)
-     ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`,
-    [JSON.stringify(value)],
+    `INSERT INTO settings (key, value) VALUES ('emails', jsonb_build_object('remindersOn', $1::boolean))
+     ON CONFLICT (key) DO UPDATE SET value = settings.value || EXCLUDED.value, updated_at = now()`,
+    [b.remindersOn !== false],
   )
-  return value
+  return getEmailSettings()
 }
 
 export function sendingEnabled(): boolean {

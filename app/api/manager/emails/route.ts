@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
   })
 }
 
-/** Console → Emails: save the bank details and the reminders switch. */
+/** Console → Emails: save the reminders switch. */
 export async function PUT(req: NextRequest) {
   if (!checkRequestPin(req, 'manager')) return NextResponse.json({ error: 'PIN required' }, { status: 401 })
   const settings = await saveEmailSettings(await req.json().catch(() => null))

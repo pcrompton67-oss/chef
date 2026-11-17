@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { t } from '@/lib/content'
-import { formatDate, localePath, type Locale } from '@/lib/i18n'
+import { formatDate, formatMoney, localePath, type Locale } from '@/lib/i18n'
+import { hasBankDetails, transferReference, type BankDetails } from '@/lib/email-templates'
 import type { EventDetail } from '@/lib/events'
 import { FadeIn } from '@/components/site/fade-in'
 import { SiteHeader } from '@/components/site/site-header'
@@ -13,11 +14,14 @@ export function ThankYouPage({
   locale,
   path,
   reference,
+  transfer,
 }: {
   event: EventDetail
   locale: Locale
   path: string
   reference: string | null
+  /** The deposit still to pay by bank transfer on this order, with where to pay it. */
+  transfer: { depositCents: number; holdDays: number; bank: BankDetails } | null
 }) {
   const c = t(locale).thanks
   return (
@@ -43,6 +47,7 @@ export function ThankYouPage({
               <p key={i}>{p}</p>
             ))}
           </div>
+          {transfer && reference ? <TransferDetails locale={locale} reference={reference} {...transfer} /> : null}
           <Link
             href={localePath(`/dine-at-home/${e.slug}`, locale)}
             className={buttonStyles('outline', 'mt-12')}
@@ -53,5 +58,54 @@ export function ThankYouPage({
       </main>
       <SiteFooter locale={locale} />
     </div>
+  )
+}
+
+/** Where and how to pay the deposit by bank transfer, with the exact amount and reference. */
+function TransferDetails({
+  locale,
+  reference,
+  depositCents,
+  holdDays,
+  bank,
+}: {
+  locale: Locale
+  reference: string
+  depositCents: number
+  holdDays: number
+  bank: BankDetails
+}) {
+  const c = t(locale)
+  const r = c.email.received
+  const amount = formatMoney(depositCents, locale)
+
+  if (!hasBankDetails(bank)) {
+    return <p className="mx-auto mt-10 max-w-md font-display text-xl leading-relaxed text-charcoal">{r.bankLater(amount)}</p>
+  }
+
+  const rows: [string, string][] = [
+    [r.accountName, bank.accountName.trim()],
+    [r.iban, bank.iban.trim()],
+    ...(bank.bic.trim() ? [[r.bic, bank.bic.trim()] as [string, string]] : []),
+    [r.amount, amount],
+    [r.reference, transferReference(reference)],
+  ]
+
+  return (
+    <section className="mx-auto mt-12 max-w-md border border-gold/60 px-5 py-7 text-left sm:px-8">
+      <h2 className="caps text-center text-gold-deep">{r.payTitle}</h2>
+      <p className="mt-4 text-center text-charcoal">
+        {r.transferIntro(amount)} {c.thanks.payWithin(holdDays)}
+      </p>
+      <dl className="mt-6 space-y-3">
+        {rows.map(([label, value]) => (
+          <div key={label} className="flex flex-wrap items-baseline justify-between gap-x-4 border-b border-border pb-2">
+            <dt className="caps text-[0.65rem] text-stone">{label}</dt>
+            <dd className="select-all break-all font-display text-lg tracking-wide text-charcoal">{value}</dd>
+          </div>
+        ))}
+      </dl>
+      <p className="mt-5 text-center text-sm text-stone">{r.transferNote}</p>
+    </section>
   )
 }

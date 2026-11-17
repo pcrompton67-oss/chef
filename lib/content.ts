@@ -156,6 +156,9 @@ const en = {
       'Your order is confirmed as soon as the deposit has been received, and the balance is paid on collection.',
     ],
     reference: (ref: string) => `Order no. ${ref}`,
+    // Bank details box (labels shared with the "request received" email, under email.received).
+    payWithin: (days: number) =>
+      days === 1 ? 'Please pay within a day of ordering.' : `Please pay within ${days} days of ordering.`,
     back: 'Back to the evening',
   },
   notify: {
@@ -364,6 +367,10 @@ const fr: Content = {
       'Votre commande est confirmée dès réception de l’acompte ; le solde est réglé à la récupération.',
     ],
     reference: (ref: string) => `Commande n° ${ref}`,
+    payWithin: (days: number) =>
+      days === 1
+        ? 'Merci de régler dans la journée qui suit votre commande.'
+        : `Merci de régler dans les ${days} jours qui suivent votre commande.`,
     back: 'Retour à la soirée',
   },
   notify: {

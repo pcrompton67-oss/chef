@@ -7,6 +7,8 @@ import { getEvent as loadEvent, listEvents } from '@/lib/events'
 import { DineAtHomePage } from '@/components/dine-at-home-page'
 import { EventPage } from '@/components/event-page'
 import { ThankYouPage } from '@/components/thank-you-page'
+import { transferDepositDue } from '@/lib/orders'
+import { getBusinessSettings } from '@/lib/settings'
 
 // The page and its metadata share one database lookup per request.
 const getEvent = cache(loadEvent)
@@ -63,12 +65,20 @@ export async function renderThankYou(locale: Locale, slug: string, ref: string |
   const event = await getEvent(slug)
   if (!event) notFound()
   const reference = typeof ref === 'string' && /^\d{1,10}$/.test(ref) ? ref : null
+  const [depositCents, settings] = reference
+    ? await Promise.all([transferDepositDue(event.slug, reference), getBusinessSettings()])
+    : [null, null]
   return (
     <ThankYouPage
       event={event}
       locale={locale}
       path={`/dine-at-home/${slug}/thank-you`}
       reference={reference}
+      transfer={
+        reference && depositCents !== null && settings
+          ? { depositCents, holdDays: settings.holdDays, bank: settings }
+          : null
+      }
     />
   )
 }

@@ -1,9 +1,8 @@
 'use client'
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import useSWR from 'swr'
 import { fetcher, send } from '@/app/manager/manager-console'
-import { buttonStyles } from '@/components/site/button-styles'
 import { EMAIL_KINDS, renderEmail, sampleOrder, type EmailKind } from '@/lib/email-templates'
 import type { EmailLogRow, EmailSettings } from '@/lib/emails'
 import { EMAIL_FROM, EMAIL_REPLY_TO, OWNER_EMAIL } from '@/lib/site'
@@ -11,7 +10,7 @@ import { cn } from '@/lib/utils'
 
 /*
  * Console → Emails (issue #13): whether sending is set up, the reminders
- * switch, bank details for the "request received" email, a preview of every
+ * switch, a preview of every
  * email in both languages (with a made-up order), and the recent send log.
  */
 
@@ -21,35 +20,20 @@ const KIND_LABEL: Record<string, string> = Object.fromEntries(EMAIL_KINDS.map((k
 
 export function EmailsTab() {
   const { data, mutate } = useSWR<Data>('/api/manager/emails', fetcher)
-  const [bank, setBank] = useState({ accountName: '', iban: '', bic: '' })
-  const [saved, setSaved] = useState<'idle' | 'saving' | 'saved'>('idle')
   const [error, setError] = useState('')
-
-  useEffect(() => {
-    if (data?.settings) {
-      const { accountName, iban, bic } = data.settings
-      setBank({ accountName, iban, bic })
-    }
-  }, [data?.settings])
 
   if (!data?.settings) return <p className="text-sm text-stone">Loading…</p>
   const settings = data.settings
 
   async function save(next: EmailSettings) {
-    setSaved('saving')
     setError('')
     try {
       await send('/api/manager/emails', 'PUT', next)
       await mutate()
-      setSaved('saved')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save.')
-      setSaved('idle')
     }
   }
-
-  const changed =
-    bank.accountName !== settings.accountName || bank.iban !== settings.iban || bank.bic !== settings.bic
 
   return (
     <div className="space-y-12">
@@ -86,38 +70,20 @@ export function EmailsTab() {
             </span>
           </span>
         </label>
-      </section>
-
-      <section className="space-y-4">
-        <Heading>Bank details</Heading>
-        <p className="text-sm text-stone">
-          Shown in the “Request received” email so customers can pay the deposit by transfer. Until they are
-          filled in, the email says you’ll send them shortly.
-        </p>
-        <Field label="Account name">
-          <input className={inputClass} value={bank.accountName} onChange={(e) => { setBank({ ...bank, accountName: e.target.value }); setSaved('idle') }} />
-        </Field>
-        <Field label="IBAN">
-          <input className={inputClass} value={bank.iban} onChange={(e) => { setBank({ ...bank, iban: e.target.value }); setSaved('idle') }} />
-        </Field>
-        <Field label="BIC (optional)">
-          <input className={inputClass} value={bank.bic} onChange={(e) => { setBank({ ...bank, bic: e.target.value }); setSaved('idle') }} />
-        </Field>
-        <div className="flex flex-wrap items-center gap-4">
-          <button
-            type="button"
-            className={buttonStyles('solid', 'px-10')}
-            disabled={!changed || saved === 'saving'}
-            onClick={() => save({ ...settings, ...bank })}
-          >
-            {saved === 'saving' ? 'Saving…' : 'Save bank details'}
-          </button>
-          {saved === 'saved' && !changed ? <span className="text-sm text-stone">Saved.</span> : null}
-        </div>
         {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
       </section>
 
-      <Preview bank={bank} />
+      <section className="space-y-3">
+        <Heading>Bank details</Heading>
+        <p className="text-sm text-stone">
+          {settings.iban
+            ? `The “Request received” email gives your bank details (${settings.accountName}, ${settings.iban}).`
+            : 'Your bank details are not filled in yet, so the “Request received” email says you’ll send them shortly.'}{' '}
+          Change them in Settings.
+        </p>
+      </section>
+
+      <Preview bank={settings} />
 
       <section className="space-y-3">
         <Heading>Recent emails</Heading>
@@ -185,20 +151,8 @@ function Preview({ bank }: { bank: { accountName: string; iban: string; bic: str
 
 /* ---------- Small pieces ---------- */
 
-const inputClass =
-  'w-full rounded-none border border-stone/40 bg-ivory px-3 py-2 text-base text-charcoal outline-none transition-colors focus:border-gold'
-
 function Heading({ children }: { children: ReactNode }) {
   return <h2 className="caps text-sm text-charcoal">{children}</h2>
-}
-
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <label className="block space-y-1.5">
-      <span className="block text-sm text-charcoal">{label}</span>
-      {children}
-    </label>
-  )
 }
 
 function Status({ ok, children }: { ok: boolean; children: ReactNode }) {

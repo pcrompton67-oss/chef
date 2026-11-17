@@ -24,6 +24,8 @@ export type ConsoleOrder = {
   status: OrderStatus
   /** Whether this order currently counts against the evening's capacity. */
   takesPlaces: boolean
+  /** A bank-transfer deposit not paid within the days set in Settings (places are still held). */
+  overdue: boolean
   totalCents: number
   depositCents: number
   depositPaid: boolean

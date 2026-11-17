@@ -9,6 +9,7 @@ import { EventsTab } from '@/components/manager/events-tab'
 import { OrdersTab } from '@/components/manager/orders-tab'
 import { PrintoutsTab } from '@/components/manager/printouts-tab'
 import { EmailsTab } from '@/components/manager/emails-tab'
+import { SettingsTab } from '@/components/manager/settings-tab'
 
 // Helpers for console sections that talk to the API: every request carries
 // the verified PIN in the `x-pin` header (checked in lib/pins.ts).
@@ -39,6 +40,7 @@ const TABS = [
   { id: 'printouts', label: 'Printouts' },
   { id: 'events', label: 'Events' },
   { id: 'emails', label: 'Emails' },
+  { id: 'settings', label: 'Settings' },
 ] as const
 type Tab = (typeof TABS)[number]['id']
 
@@ -106,6 +108,7 @@ export function ManagerConsole() {
         {tab === 'printouts' ? <PrintoutsTab /> : null}
         {tab === 'events' ? <EventsTab /> : null}
         {tab === 'emails' ? <EmailsTab /> : null}
+        {tab === 'settings' ? <SettingsTab /> : null}
       </main>
     </div>
   )
@@ -118,8 +121,9 @@ function Overview() {
       <span className="rule my-5" aria-hidden />
       <p className="mx-auto max-w-md leading-relaxed text-stone">
         Use Orders for the day-to-day bookings and Events to set up your Dine at
-        Home evenings, Printouts for the prep list, run sheet and box labels, and
-        Emails for your bank details, reminders and email previews.
+        Home evenings, Printouts for the prep list, run sheet and box labels,
+        Emails for reminders and email previews, and Settings for your bank
+        details.
       </p>
     </div>
   )
