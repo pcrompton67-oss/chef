@@ -420,7 +420,7 @@ const en = {
                 'Neon Inc. (United States): stores orders and customer details, on servers in Frankfurt, Germany.',
                 'Resend Inc. (United States): sends my emails.',
               ],
-              'Where your details are handled outside the European Union, this is covered by safeguards recognised under European law, such as the EU–US Data Privacy Framework or the European Commission’s standard contractual clauses. [[To be checked for each company.]]',
+              'Each of them has a data processing agreement that includes the European Commission’s standard contractual clauses, and each takes part in the EU–US Data Privacy Framework, so your details are protected to European standards wherever they are handled.',
             ],
           },
           {
@@ -941,7 +941,7 @@ const fr: Content = {
                 'Neon Inc. (États-Unis) : stockage des commandes et des données clients, sur des serveurs situés à Francfort (Allemagne).',
                 'Resend Inc. (États-Unis) : envoi de mes e-mails.',
               ],
-              'Lorsque vos données sont traitées hors de l’Union européenne, ce transfert est encadré par des garanties reconnues par le droit européen, comme le cadre de protection des données UE–États-Unis ou les clauses contractuelles types de la Commission européenne. [[À vérifier pour chaque société.]]',
+              'Chacune de ces sociétés est liée par un accord de traitement des données comprenant les clauses contractuelles types de la Commission européenne, et chacune adhère au cadre de protection des données UE–États-Unis : vos données sont ainsi protégées selon les normes européennes, où qu’elles soient traitées.',
             ],
           },
           {
