@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "db:migrate": "node --env-file-if-exists=.env.local scripts/db.mjs migrate",
+    "db:seed": "node --env-file-if-exists=.env.local scripts/db.mjs seed",
+    "db:unseed": "node --env-file-if-exists=.env.local scripts/db.mjs unseed"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
@@ -28,6 +31,7 @@
     "@types/node": "^24",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
+    "pg": "^8.23.1",
     "postcss": "^8.5",
     "tailwindcss": "^4.3.3",
     "typescript": "5.7.3"

@@ -20,6 +20,17 @@ Website and management console for **Eleanor Jessica, cheffe privée** (a privat
 - Address for now: `chefej.popol.tech` (set as `SITE_URL` in `app/layout.tsx`; change it there if the domain changes).
 - Eleanor uses `/manager` (PIN-protected) to run things.
 
+## How Dine at Home works
+
+Working assumptions (issue #2). Paul and Eleanor should correct anything that's wrong.
+
+- An **event** is one Dine at Home evening: a themed four-course menu Eleanor prepares, which customers collect and finish at home (with her video guide). It has a date (usually a Friday), price and deposit per person, a capacity in diners, an order cut-off, and a status: draft → open → sold out / closed → done.
+- The **menu** is a list of **courses**. A fixed course is the same for everyone. A choice course (e.g. the main) has two or more **options**, and each diner picks one. Each course has a short italic description line, with components separated by " · ".
+- **Collection points**: each event has a few places, each with a collection time and an exact address (e.g. Lorigné 17:00, Sauzé-Vaussais 17:30, St-Pierre-d'Exideuil 18:00, Ruffec 18:30).
+- An **order** is for a number of diners at one collection point. It records how many chose each option of every choice course, plus allergies, language, and where it came from (website, phone, WhatsApp, …).
+- **Payment**: a deposit per person is paid when ordering (card or bank transfer; cash or cheque for orders Eleanor takes herself). The balance is paid at collection. Unpaid orders hold their places until `hold_expires_at`, then expire. Refunds are tracked on the order.
+- **Customers** are remembered by email, with marketing consent. People can sign up to be notified when the next event opens.
+
 ## Look and feel
 
 Fine dining, calm and elegant. Taken from Eleanor's own files in `public/`:
@@ -45,10 +56,20 @@ Fine dining, calm and elegant. Taken from Eleanor's own files in `public/`:
 - Next.js 16 (App Router), React 19, TypeScript, Tailwind 4, shadcn/ui. Package manager: **pnpm**.
 - Next 16 differs from older versions: check `node_modules/next/dist/docs/` before writing Next-specific code.
 - `pnpm build` skips type checks (`next.config.mjs`), so also run `npx tsc --noEmit`.
-- Database: Neon Postgres via `@neondatabase/serverless` (`lib/db.ts`), raw SQL, no ORM or migration files. The database still holds the old app's tables; nothing uses them now. Inspect the live schema before assuming anything, and treat any table change as hard to undo (ask first).
+- Database: Neon Postgres, raw SQL via `@neondatabase/serverless` (`lib/db.ts`), no ORM. The tables are defined by the numbered files in `migrations/` (see "Database" below). Treat any table change as hard to undo (ask first).
 - Manager auth: a single PIN (`MANAGER_PIN`), sent as the `x-pin` header and checked in `lib/pins.ts`.
 - Dates are always Europe/Paris time.
 - No automated tests.
+
+## Database
+
+- Tables are created by the numbered SQL files in `migrations/`. To change the database, **add a new numbered file**; never edit one that has already been run. Each file runs once, in number order. The database remembers which have run (table `schema_migrations`), and the files are also safe to run twice.
+- Money is always stored in euro cents (`…_cents`).
+- Test data is flagged `is_test` and uses `@example.com` emails, so nothing reaches real people.
+- Commands (they use `DATABASE_URL`, read from `.env.local`; get it with `vercel env pull .env.local`):
+  - `pnpm db:migrate`: apply any new migration files.
+  - `pnpm db:seed`: add (or refresh) the test event "TEST – Inspired by India" with its menu, collection points and orders.
+  - `pnpm db:unseed`: remove all test data (real data is never touched).
 
 ## Environment variables (set in Vercel)
 
