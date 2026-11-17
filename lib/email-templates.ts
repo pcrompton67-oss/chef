@@ -1,6 +1,7 @@
 import { content } from '@/lib/content'
 import { formatDate, formatMoney, formatTime, type Locale } from '@/lib/i18n'
 import { SITE_URL } from '@/lib/site'
+import { unsubscribePath } from '@/lib/unsubscribe-link'
 
 /**
  * The emails (issue #13): what they say and how they look, in HTML and plain
@@ -43,6 +44,8 @@ export type EmailOrder = {
   address: string
   /** The menu, with how many of each dish for choice courses. */
   courses: { name: string; dishes: { name: string; quantity: number | null }[] }[]
+  /** Private code for the unsubscribe link: only for customers on the mailing list. */
+  unsubscribeToken?: string | null
 }
 
 export type BankDetails = {
@@ -127,7 +130,10 @@ export function renderEmail(kind: EmailKind, o: EmailOrder, bank: BankDetails): 
 
   b.para(c.replyNote, true)
   b.signOff(c.signOff, c.signature)
-  return { subject, ...b.finish(c.footer, subject) }
+  const unsubscribe = o.unsubscribeToken
+    ? { label: c.unsubscribe, url: SITE_URL + unsubscribePath(o.unsubscribeToken, loc) }
+    : undefined
+  return { subject, ...b.finish(c.footer, subject, unsubscribe) }
 }
 
 /** Time, place, address and the balance: for the confirmed and reminder emails. */
@@ -301,7 +307,7 @@ class Builder {
     this.text.push(line, name, '')
   }
 
-  finish(footer: string, subject: string): { html: string; text: string } {
+  finish(footer: string, subject: string, unsubscribe?: { label: string; url: string }): { html: string; text: string } {
     const html = `<!doctype html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(subject)}</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital@0;1&family=Jost:wght@300;400&display=swap" rel="stylesheet"></head>
@@ -320,6 +326,7 @@ ${this.html.join('\n')}
 </table>
 <p style="margin:18px 0 0;font-family:${SANS};font-size:11px;letter-spacing:2px;text-transform:uppercase;color:${C.stone};">${esc(footer)}</p>
 <p style="margin:6px 0 0;font-family:${SANS};font-size:12px;"><a href="${SITE_URL}" style="color:${C.goldDeep};text-decoration:none;">${esc(SITE_URL.replace(/^https?:\/\//, ''))}</a></p>
+${unsubscribe ? `<p style="margin:10px 0 0;font-family:${SANS};font-size:11px;"><a href="${esc(unsubscribe.url)}" style="color:${C.stone};">${esc(unsubscribe.label)}</a></p>` : ''}
 </td></tr></table>
 </body></html>`
     const text = [
@@ -329,6 +336,7 @@ ${this.html.join('\n')}
       '—',
       footer,
       SITE_URL,
+      ...(unsubscribe ? ['', unsubscribe.label, unsubscribe.url] : []),
     ]
       .join('\n')
       .replace(/\n{3,}/g, '\n\n')
@@ -360,6 +368,7 @@ export function sampleOrder(language: Locale): EmailOrder {
     place: 'Sauzé-Vaussais',
     time: '17:30',
     address: '1 Place de l’Église, 79190 Sauzé-Vaussais (sample address)',
+    unsubscribeToken: '0'.repeat(32), // shows where the link goes (sample only)
     courses: [
       { name: 'Starter', dishes: [{ name: 'Caramelised Onion, Squash & Feta Samosa', quantity: null }] },
       { name: 'Second course', dishes: [{ name: 'Spiced Cauliflower Velouté', quantity: null }] },

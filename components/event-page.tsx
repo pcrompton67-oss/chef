@@ -190,7 +190,7 @@ export function EventPage({
               <p className="mx-auto max-w-md text-center font-display text-xl italic leading-relaxed text-stone">
                 {closedNote}
               </p>
-              {e.availability === 'sold_out' ? <NotifyForm locale={locale} /> : null}
+              {e.availability === 'sold_out' ? <NotifyForm locale={locale} eventSlug={e.slug} /> : null}
             </FadeIn>
           ) : (
             <OrderForm

@@ -7,6 +7,9 @@ import { getEvent as loadEvent, listEvents } from '@/lib/events'
 import { DineAtHomePage } from '@/components/dine-at-home-page'
 import { EventPage } from '@/components/event-page'
 import { ThankYouPage } from '@/components/thank-you-page'
+import { UnsubscribeForm } from '@/components/unsubscribe-page'
+import { SiteHeader } from '@/components/site/site-header'
+import { SiteFooter } from '@/components/site/site-footer'
 import { transferDepositDue } from '@/lib/orders'
 import { getBusinessSettings } from '@/lib/settings'
 
@@ -85,4 +88,27 @@ export async function renderThankYou(locale: Locale, slug: string, ref: string |
 
 export function thankYouMetadata(locale: Locale): Metadata {
   return { title: content[locale].thanks.title, robots: { index: false } }
+}
+
+/** The unsubscribe page. `t` is the private code from the email link. */
+export function renderUnsubscribe(locale: Locale, t: string | string[] | undefined) {
+  const token = typeof t === 'string' && /^[0-9a-f]{32}$/.test(t) ? t : ''
+  const c = content[locale].unsubscribe
+  const path = token ? `/unsubscribe?t=${token}` : '/unsubscribe'
+  return (
+    <div lang={locale} className="flex min-h-dvh flex-col">
+      <SiteHeader locale={locale} path={path} />
+      <main className="flex-1 px-4 py-24 text-center sm:px-8 sm:py-32">
+        <p className="caps text-gold-deep">{c.eyebrow}</p>
+        <h1 className="mt-5 text-4xl uppercase tracking-[0.14em] text-charcoal sm:text-5xl">{c.title}</h1>
+        <span className="rule my-10" aria-hidden />
+        <UnsubscribeForm locale={locale} token={token} />
+      </main>
+      <SiteFooter locale={locale} />
+    </div>
+  )
+}
+
+export function unsubscribeMetadata(locale: Locale): Metadata {
+  return { title: content[locale].unsubscribe.metaTitle, robots: { index: false } }
 }

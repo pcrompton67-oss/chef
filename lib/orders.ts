@@ -177,9 +177,9 @@ ok AS (
 -- One customer per email. Ticking the marketing box gives consent; leaving it
 -- unticked doesn't take away consent given before.
 cust AS (
-  INSERT INTO customers (name, email, mobile, language, marketing_consent, consent_at, is_test)
+  INSERT INTO customers (name, email, mobile, language, marketing_consent, consent_at, source, is_test)
   SELECT $4::text, $6::text, $5::text, $8::text, $9::boolean,
-         CASE WHEN $9::boolean THEN now() END, ok.is_test
+         CASE WHEN $9::boolean THEN now() END, 'website', ok.is_test
     FROM ok
   ON CONFLICT (lower(email)) DO UPDATE
      SET name = EXCLUDED.name,
@@ -211,18 +211,6 @@ lines AS (
 SELECT ev.status, ev.cutoff_passed, ev.is_past, ev.places_left,
        (SELECT id::text FROM ord) AS order_id
   FROM ev`
-
-/** "Tell me about the next one": saves an email to hear about the next evening. */
-export async function addNotifySignup(email: string, locale: Locale): Promise<boolean> {
-  const clean = email.trim().slice(0, 200)
-  if (!EMAIL.test(clean)) return false
-  await query(
-    `INSERT INTO notify_signups (email, language) VALUES ($1, $2)
-     ON CONFLICT (lower(email), coalesce(event_id, 0)) DO NOTHING`,
-    [clean, locale],
-  )
-  return true
-}
 
 /**
  * For the thank-you page: the deposit still to be paid by bank transfer on
