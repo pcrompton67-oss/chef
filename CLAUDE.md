@@ -29,7 +29,7 @@ Working assumptions (issue #2). Paul and Eleanor should correct anything that's 
 - **Collection points**: each event has a few places, each with a collection time and an exact address (e.g. Lorigné 17:00, Sauzé-Vaussais 17:30, St-Pierre-d'Exideuil 18:00, Ruffec 18:30).
 - An **order** is for a number of diners at one collection point. It records how many chose each option of every choice course, plus allergies, language, and where it came from (website, phone, WhatsApp, …).
 - **Payment**: a deposit per person is paid when ordering (card or bank transfer; cash or cheque for orders Eleanor takes herself). The balance is paid at collection. Unpaid orders hold their places until `hold_expires_at`, then expire. Refunds are tracked on the order.
-- **Customers** are remembered by email. The mailing list is “new box dates and other news from Eleanor Jessica”: people join only by ticking that box when ordering or by using a sign-up box (“Hear about new box dates” on the home page, or “Tell me about the next one” on a sold-out evening), and leave through the unsubscribe link or the console.
+- **Customers** are remembered by email. The mailing list is “new box dates and other news from Eleanor Jessica”: people join only by ticking that box when ordering, or by using a sign-up box (“Hear about new box dates” on the home page, or “Tell me about the next one” on a sold-out evening) **and then clicking the link in the confirmation email** (double opt-in), and leave through the unsubscribe link or the console.
 
 ## Look and feel
 
@@ -62,7 +62,9 @@ Fine dining, calm and elegant. Taken from Eleanor's own files in `public/`:
 - Reminders: `app/api/cron/reminders`, run by Vercel at 16:00 and 17:00 UTC (`vercel.json`); only the run that falls at 18h in Paris does anything. Needs `CRON_SECRET`.
 - Console → Emails: `components/manager/emails-tab.tsx`, API at `app/api/manager/emails`. Sending status, reminders on/off (stored in `settings`, key `emails`; bank details come from Settings), previews of every email in both languages, recent send log.
 - Console → Customers and the mailing list (issue #10): `components/manager/customers-tab.tsx`, `lib/customers.ts` (sign-ups, unsubscribing, customer list, CSV), API at `app/api/manager/customers`. Everyone who has ordered or signed up, their orders and sign-ups, where they came from (`source`: website / console / signup), and whether they're on the list with the date. The CSV holds only real (non-test) people on the list. "On the list" always means `marketing_consent AND unsubscribed_at IS NULL`. Eleanor can take someone off but never add them.
-- Unsubscribing: `/unsubscribe?t=<code>` (and `/fr/…`), `components/unsubscribe-page.tsx`, `app/api/unsubscribe` (also takes email apps' one-click unsubscribe). Each customer has a private `unsubscribe_token`. Customer emails to people on the list carry the link in the footer and a `List-Unsubscribe` header (`lib/unsubscribe-link.ts`, kept apart so the browser previews can use it).
+- Sign-up confirmation (double opt-in): `/api/notify` records the sign-up in `notify_signups` and sends the "please confirm" email (at most one an hour per address and box). `/confirm-subscription?t=<code>` (and `/fr/…`, `app/api/confirm-subscription`) puts them on the list; links work for 30 days. Unconfirmed sign-ups don't appear in the console. The two link pages share `components/token-action-page.tsx`.
+- Weekly list to Eleanor: `app/api/cron/weekly-list`, run by Vercel on Mondays at 06:00 and 07:00 UTC; only the run at 8h Paris sends. Who joined and left that week plus the CSV attached; at most once a week; on/off in Console → Emails (`weeklyListOn`). Needs `CRON_SECRET`.
+- Unsubscribing: `/unsubscribe?t=<code>` (and `/fr/…`), `app/api/unsubscribe` (also takes email apps' one-click unsubscribe). Each customer has a private `unsubscribe_token`. Customer emails to people on the list carry the link in the footer and a `List-Unsubscribe` header (link helpers in `lib/unsubscribe-link.ts`, kept apart so the browser previews can use it).
 - `app/api/verify-pin`: checks the PIN.
 - `v0_memories/`: v0's leftover reference copies from the old app. Not used; ignore.
 
@@ -88,7 +90,7 @@ Fine dining, calm and elegant. Taken from Eleanor's own files in `public/`:
 
 ## Environment variables (set in Vercel)
 
-`MANAGER_PIN` (needed now), `DATABASE_URL` (for features that use the database), `RESEND_API_KEY` (emails; without it nothing is sent), `CRON_SECRET` (any long random text; lets Vercel run the 18:00 reminders). Pull them with `vercel env pull`; never commit them.
+`MANAGER_PIN` (needed now), `DATABASE_URL` (for features that use the database), `RESEND_API_KEY` (emails; without it nothing is sent), `CRON_SECRET` (any long random text; lets Vercel run the 18:00 reminders and the Monday mailing list). Pull them with `vercel env pull`; never commit them.
 
 # This is NOT the Next.js you know
 

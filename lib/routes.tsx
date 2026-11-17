@@ -7,7 +7,7 @@ import { getEvent as loadEvent, listEvents } from '@/lib/events'
 import { DineAtHomePage } from '@/components/dine-at-home-page'
 import { EventPage } from '@/components/event-page'
 import { ThankYouPage } from '@/components/thank-you-page'
-import { UnsubscribeForm } from '@/components/unsubscribe-page'
+import { TokenActionForm } from '@/components/token-action-page'
 import { SiteHeader } from '@/components/site/site-header'
 import { SiteFooter } from '@/components/site/site-footer'
 import { transferDepositDue } from '@/lib/orders'
@@ -90,11 +90,15 @@ export function thankYouMetadata(locale: Locale): Metadata {
   return { title: content[locale].thanks.title, robots: { index: false } }
 }
 
-/** The unsubscribe page. `t` is the private code from the email link. */
-export function renderUnsubscribe(locale: Locale, t: string | string[] | undefined) {
+/**
+ * The pages reached from email links (issue #10): unsubscribing and confirming
+ * a sign-up. `t` is the private code from the link.
+ */
+function renderTokenPage(locale: Locale, t: string | string[] | undefined, page: 'unsubscribe' | 'confirmSignup') {
   const token = typeof t === 'string' && /^[0-9a-f]{32}$/.test(t) ? t : ''
-  const c = content[locale].unsubscribe
-  const path = token ? `/unsubscribe?t=${token}` : '/unsubscribe'
+  const c = content[locale][page]
+  const base = page === 'unsubscribe' ? '/unsubscribe' : '/confirm-subscription'
+  const path = token ? `${base}?t=${token}` : base
   return (
     <div lang={locale} className="flex min-h-dvh flex-col">
       <SiteHeader locale={locale} path={path} />
@@ -102,13 +106,25 @@ export function renderUnsubscribe(locale: Locale, t: string | string[] | undefin
         <p className="caps text-gold-deep">{c.eyebrow}</p>
         <h1 className="mt-5 text-4xl uppercase tracking-[0.14em] text-charcoal sm:text-5xl">{c.title}</h1>
         <span className="rule my-10" aria-hidden />
-        <UnsubscribeForm locale={locale} token={token} />
+        <TokenActionForm locale={locale} token={token} endpoint={`/api${base}`} c={c} />
       </main>
       <SiteFooter locale={locale} />
     </div>
   )
 }
 
+export function renderUnsubscribe(locale: Locale, t: string | string[] | undefined) {
+  return renderTokenPage(locale, t, 'unsubscribe')
+}
+
 export function unsubscribeMetadata(locale: Locale): Metadata {
   return { title: content[locale].unsubscribe.metaTitle, robots: { index: false } }
+}
+
+export function renderConfirmSignup(locale: Locale, t: string | string[] | undefined) {
+  return renderTokenPage(locale, t, 'confirmSignup')
+}
+
+export function confirmSignupMetadata(locale: Locale): Metadata {
+  return { title: content[locale].confirmSignup.metaTitle, robots: { index: false } }
 }

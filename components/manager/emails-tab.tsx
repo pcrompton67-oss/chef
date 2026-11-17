@@ -3,14 +3,14 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import useSWR from 'swr'
 import { fetcher, send } from '@/app/manager/manager-console'
-import { EMAIL_KINDS, renderEmail, sampleOrder, type EmailKind } from '@/lib/email-templates'
+import { EMAIL_KINDS, renderPreview, type EmailKind } from '@/lib/email-templates'
 import type { EmailLogRow, EmailSettings } from '@/lib/emails'
 import { EMAIL_FROM, EMAIL_REPLY_TO, OWNER_EMAIL } from '@/lib/site'
 import { cn } from '@/lib/utils'
 
 /*
- * Console → Emails (issue #13): whether sending is set up, the reminders
- * switch, a preview of every
+ * Console → Emails (issue #13): whether sending is set up, the reminders and
+ * weekly mailing-list switches (issue #10), a preview of every
  * email in both languages (with a made-up order), and the recent send log.
  */
 
@@ -46,8 +46,8 @@ export function EmailsTab() {
         </Status>
         <Status ok={data.remindersReady}>
           {data.remindersReady
-            ? 'The 18:00 reminder run is set up.'
-            : 'The 18:00 reminder run is not set up yet (CRON_SECRET missing in Vercel).'}
+            ? 'The 18:00 reminders and Monday mailing list are set up.'
+            : 'The 18:00 reminders and Monday mailing list are not set up yet (CRON_SECRET missing in Vercel).'}
         </Status>
         <p className="text-sm text-stone">
           From {EMAIL_FROM}. Replies go to {EMAIL_REPLY_TO}. Your copies go to {OWNER_EMAIL}.
@@ -55,7 +55,7 @@ export function EmailsTab() {
       </section>
 
       <section className="space-y-3">
-        <Heading>Reminders</Heading>
+        <Heading>Automatic emails</Heading>
         <label className="flex cursor-pointer items-start gap-3">
           <input
             type="checkbox"
@@ -67,6 +67,20 @@ export function EmailsTab() {
             Send a reminder at 18:00 the day before each evening
             <span className="block text-sm text-stone">
               Confirmed orders only, once per order. Gives the address, time and balance due.
+            </span>
+          </span>
+        </label>
+        <label className="flex cursor-pointer items-start gap-3">
+          <input
+            type="checkbox"
+            className="mt-1 h-4 w-4 accent-gold"
+            checked={settings.weeklyListOn}
+            onChange={(e) => save({ ...settings, weeklyListOn: e.target.checked })}
+          />
+          <span className="text-charcoal">
+            Send me my mailing list every Monday at 8:00
+            <span className="block text-sm text-stone">
+              Who joined and who unsubscribed that week, with the full list attached as a spreadsheet.
             </span>
           </span>
         </label>
@@ -113,7 +127,8 @@ function Preview({ bank }: { bank: { accountName: string; iban: string; bic: str
   const [kind, setKind] = useState<EmailKind>('received')
   const [lang, setLang] = useState<'en' | 'fr'>('en')
   const [plain, setPlain] = useState(false)
-  const email = useMemo(() => renderEmail(kind, sampleOrder(lang), bank), [kind, lang, bank])
+  const email = useMemo(() => renderPreview(kind, lang, bank), [kind, lang, bank])
+  const englishOnly = kind === 'owner' || kind === 'weekly'
   const info = EMAIL_KINDS.find((k) => k.id === kind)!
 
   return (
@@ -127,13 +142,15 @@ function Preview({ bank }: { bank: { accountName: string; iban: string; bic: str
         ))}
       </div>
       <div className="flex flex-wrap gap-2">
-        <Choice active={lang === 'en'} onClick={() => setLang('en')} disabled={kind === 'owner'}>English</Choice>
-        <Choice active={lang === 'fr'} onClick={() => setLang('fr')} disabled={kind === 'owner'}>Français</Choice>
+        <Choice active={lang === 'en'} onClick={() => setLang('en')} disabled={englishOnly}>English</Choice>
+        <Choice active={lang === 'fr'} onClick={() => setLang('fr')} disabled={englishOnly}>Français</Choice>
         <span className="w-4" />
         <Choice active={!plain} onClick={() => setPlain(false)}>Designed</Choice>
         <Choice active={plain} onClick={() => setPlain(true)}>Plain text</Choice>
       </div>
-      <p className="text-sm text-stone">{info.when} The order shown is made up.</p>
+      <p className="text-sm text-stone">
+        {info.when} {kind === 'signup' ? 'The link shown doesn’t work.' : kind === 'weekly' ? 'The people shown are made up.' : 'The order shown is made up.'}
+      </p>
       <p className="text-sm text-charcoal">
         <span className="caps mr-2 text-[0.65rem] text-stone">Subject</span>
         {email.subject}

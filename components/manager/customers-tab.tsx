@@ -73,7 +73,8 @@ export function CustomersTab() {
       </div>
       <p className="-mt-4 text-sm text-stone">
         The list only holds people who ticked “new box dates and other news” when ordering, or used a sign-up box
-        (home page or sold-out evening), and haven’t unsubscribed. Test customers are never included.
+        (home page or sold-out evening) and then confirmed by email, and haven’t unsubscribed. Sign-ups still
+        waiting for confirmation don’t appear here. Test customers are never included.
       </p>
       {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
 

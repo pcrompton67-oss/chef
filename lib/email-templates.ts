@@ -1,7 +1,7 @@
 import { content } from '@/lib/content'
 import { formatDate, formatMoney, formatTime, type Locale } from '@/lib/i18n'
 import { SITE_URL } from '@/lib/site'
-import { unsubscribePath } from '@/lib/unsubscribe-link'
+import { confirmSignupPath, unsubscribePath } from '@/lib/unsubscribe-link'
 
 /**
  * The emails (issue #13): what they say and how they look, in HTML and plain
@@ -12,13 +12,18 @@ import { unsubscribePath } from '@/lib/unsubscribe-link'
  * (the `email` section). Eleanor's copy is always in English.
  */
 
-export type EmailKind = 'received' | 'confirmed' | 'reminder' | 'owner'
+/** Emails about one order. */
+export type OrderEmailKind = 'received' | 'confirmed' | 'reminder' | 'owner'
+/** All emails: order emails, the sign-up confirmation, and Eleanor's weekly list (issue #10). */
+export type EmailKind = OrderEmailKind | 'signup' | 'weekly'
 
 export const EMAIL_KINDS: { id: EmailKind; label: string; when: string }[] = [
   { id: 'received', label: 'Request received', when: 'Sent to the customer as soon as they order.' },
   { id: 'confirmed', label: 'Booking confirmed', when: 'Sent when you press “Deposit received”. The only email (with the reminder) that gives the address.' },
   { id: 'reminder', label: 'Reminder', when: 'Sent at 18:00 the day before, to confirmed orders only.' },
   { id: 'owner', label: 'Your copy', when: 'Sent to you for every new website order. Always in English.' },
+  { id: 'signup', label: 'Confirm subscription', when: 'Sent when someone uses a sign-up box. They join the mailing list only once they click the button.' },
+  { id: 'weekly', label: 'Weekly mailing list', when: 'Sent to you every Monday at 8:00, with the full list attached as a spreadsheet. Always in English.' },
 ]
 
 /** Everything an email needs to know about one order. */
@@ -67,7 +72,7 @@ export function hasBankDetails(b: BankDetails): boolean {
   return Boolean(b.accountName.trim() && b.iban.trim())
 }
 
-export function renderEmail(kind: EmailKind, o: EmailOrder, bank: BankDetails): RenderedEmail {
+export function renderEmail(kind: OrderEmailKind, o: EmailOrder, bank: BankDetails): RenderedEmail {
   if (kind === 'owner') return ownerCopy(o, bank)
   const loc = o.language
   const c = content[loc].email
@@ -134,6 +139,78 @@ export function renderEmail(kind: EmailKind, o: EmailOrder, bank: BankDetails): 
     ? { label: c.unsubscribe, url: SITE_URL + unsubscribePath(o.unsubscribeToken, loc) }
     : undefined
   return { subject, ...b.finish(c.footer, subject, unsubscribe) }
+}
+
+/** The sign-up confirmation (double opt-in): one button that puts them on the list. */
+export function renderSignupConfirm(locale: Locale, token: string): RenderedEmail {
+  const c = content[locale].email
+  const s = c.signup
+  const b = new Builder()
+  b.title(s.title)
+  b.para(s.greeting)
+  b.para(s.intro)
+  b.link(s.button, SITE_URL + confirmSignupPath(token, locale))
+  b.para(s.expires, true)
+  b.para(s.ignore, true)
+  b.signOff(c.signOff, c.signature)
+  return { subject: s.subject, ...b.finish(c.footer, s.subject) }
+}
+
+/** Shape of Eleanor's weekly mailing-list email (same as WeeklyList in lib/customers.ts). */
+export type WeeklyListEmail = {
+  total: number
+  joined: { name: string; email: string; source: string; date: string }[]
+  left: { name: string; email: string; date: string }[]
+}
+
+const SOURCE_EN: Record<string, string> = {
+  website: 'ticked the box on a website order',
+  console: 'order you added',
+  signup: 'sign-up box',
+}
+
+/** Eleanor's Monday email: who joined and left the list this week (English). */
+export function renderWeeklyList(w: WeeklyListEmail): RenderedEmail {
+  const people = (n: number) => `${n} ${n === 1 ? 'person' : 'people'}`
+  const subject = `Mailing list · ${w.joined.length} new this week · ${w.total} in total`
+  const b = new Builder()
+  b.title('Your mailing list')
+  b.para(`${people(w.total)} ${w.total === 1 ? 'is' : 'are'} on your mailing list for new box dates and news.`)
+  b.heading(`Joined this week (${w.joined.length})`)
+  if (w.joined.length) {
+    b.table(w.joined.map((p) => [formatDate(p.date, 'en'), [p.name, p.email, SOURCE_EN[p.source]].filter(Boolean).join(' · ')]))
+  } else b.para('Nobody new this week.', true)
+  b.heading(`Unsubscribed this week (${w.left.length})`)
+  if (w.left.length) {
+    b.table(w.left.map((p) => [formatDate(p.date, 'en'), [p.name, p.email].filter(Boolean).join(' · ')]))
+  } else b.para('Nobody unsubscribed this week.', true)
+  b.para('The full list is attached as a spreadsheet (CSV). You can also download it at any time from the console, under Customers.', true)
+  b.link('Open the console', `${SITE_URL}/manager`)
+  return { subject, ...b.finish('Eleanor Jessica · console', subject) }
+}
+
+/** Made-up week for the console preview. */
+export function sampleWeeklyList(): WeeklyListEmail {
+  const day = (n: number) => {
+    const d = new Date()
+    d.setDate(d.getDate() - n)
+    return d.toISOString().slice(0, 10)
+  }
+  return {
+    total: 42,
+    joined: [
+      { name: 'Sarah Jones', email: 'sarah@example.com', source: 'website', date: day(5) },
+      { name: '', email: 'camille@example.com', source: 'signup', date: day(2) },
+    ],
+    left: [{ name: 'Tom Brown', email: 'tom@example.com', date: day(3) }],
+  }
+}
+
+/** Any email with made-up content, for the console's previews. */
+export function renderPreview(kind: EmailKind, locale: Locale, bank: BankDetails): RenderedEmail {
+  if (kind === 'signup') return renderSignupConfirm(locale, '0'.repeat(32))
+  if (kind === 'weekly') return renderWeeklyList(sampleWeeklyList())
+  return renderEmail(kind, sampleOrder(locale), bank)
 }
 
 /** Time, place, address and the balance: for the confirmed and reminder emails. */
