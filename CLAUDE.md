@@ -10,7 +10,7 @@
 
 ## Status: being built, not live yet
 
-This was copied from Paul's `sausage-rolls` app and is being rebuilt for Chef Eleanor. It doesn't take real orders yet. Still work on a branch and get Paul's OK before merging to `main`. Once it goes live, real customers pay deposits here, so never test against live customer data or live Stripe keys.
+This was copied from Paul's `sausage-rolls` app and is being rebuilt for Eleanor Jessica. It doesn't take real orders yet. Still work on a branch and get Paul's OK before merging to `main`. Once it goes live, real customers pay deposits here, so never test against live customer data or live Stripe keys.
 
 - **Demo / test site (temporary): `chefej.popol.tech`.** Used to test and to show Eleanor. It runs **without email and without Stripe** for now.
 - So the app must work fully with no `RESEND_API_KEY` and no Stripe keys: the card option is hidden, bank transfer works, and emails are simply not sent (orders still save and the console still works).
@@ -18,7 +18,9 @@ This was copied from Paul's `sausage-rolls` app and is being rebuilt for Chef El
 
 ## What it is
 
-The website and booking platform for **Chef Eleanor** (chefeleanor.com), a private chef in the Deux-Sèvres / Charente area. Paul builds and hosts it for her.
+The website and booking platform for **Eleanor Jessica · cheffe privée** (chefeleanor.com), a private chef in the Deux-Sèvres / Charente area. Paul builds and hosts it for her.
+
+- On the site the brand name is **Eleanor Jessica** (with "cheffe privée" as the strapline), never "Chef Eleanor".
 
 - **Now: Dine at Home.** A themed four-course dinner on a set evening. Eleanor prepares it, customers collect a box from a collection point at a set time and finish it at home. This replaces her Tally form.
 - **Later: the restaurant.** She is converting a barn into a high-end restaurant opening spring 2027. Table bookings will live at `/restaurant` in this same app. Don't build it yet, but keep customers, settings and the console general enough to add it without a rewrite.
@@ -30,12 +32,12 @@ The website and booking platform for **Chef Eleanor** (chefeleanor.com), a priva
 A fine-dining brand, like a Michelin restaurant's website or a high-end food magazine. Never a takeaway shop.
 
 - Elegant serif display font for headings, clean sans-serif for body text, loaded with `next/font`.
-- Cream / off-white background, deep charcoal text, one restrained accent colour. No bright colours, gradients, emoji or rounded "app" buttons.
+- Cream / off-white background, deep charcoal text, and her logo's warm gold (about `#D4AC54`) as the one restrained accent, with the logo's soft grey (about `#5A5A5A`). No bright colours, gradients, emoji or rounded "app" buttons.
 - Lots of white space, large full-width food photography, slow subtle fade-ins on scroll. Nothing bouncy.
 - Menus laid out like a printed tasting menu: centred, course by course, small caps for course names.
 - Copy is warm, personal and in Eleanor's voice ("I'll prepare…"), never salesy.
 - Emails share the same look in simple HTML.
-- Paul adds the logo, photos and menu images to `public/` himself.
+- Paul adds the logo, photos and menu images to `public/` himself. Current files: `CEJ_Logo.jpg` (round logo), `CEJ_Banner.jpg` (social banner, logo and food baked in, so not for the site), `CEJ_Food2.jpg` (velouté on dark slate, hero), `CEF_Food1.jpg` (pithivier), `CEJ_Menu_Indian.jpg` (the printed "Inspired by India" menu). `logo.jpg` / `logo.png` are the old sausage logo, to be removed.
 
 ## How Dine at Home works (the domain)
 
