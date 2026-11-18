@@ -979,7 +979,6 @@ function eventFromCard(card: MenuCardDraft, base: EditableEvent | null): { start
   if (base?.isTest)
     notes.push('That was a test evening: make sure the collection points have real addresses before opening for orders.')
   notes.push('Please check every dish, (v) mark and description line against the card.')
-  notes.push('The French wording was written by Claude: please read it through before opening the evening.')
   return {
     start: {
       ...from,

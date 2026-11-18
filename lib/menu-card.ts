@@ -4,8 +4,11 @@ import * as z from 'zod/v4'
 import type { EditableCourse } from '@/lib/event-editing'
 
 /**
- * Reads a photo of Eleanor's printed menu card with Claude and turns it into
- * the start of a new evening (issue #23). Server only: it uses
+ * Reads Eleanor's printed menu card with Claude and turns it into the start of
+ * a new evening (issue #23). A card can be a photo or a PDF, and she can give
+ * an English card, a French card, or both (issue #33): with both, each
+ * language is taken word for word from her own card; with one, Claude writes
+ * the other language and the draft's notes say so. Server only: it uses
  * ANTHROPIC_API_KEY (set in Vercel). Nothing is saved here; the console opens
  * the result in the normal event editor as an unsaved draft.
  */
@@ -48,18 +51,29 @@ const MenuCardSchema = z.object({
       ),
     }),
   ),
+  translated: z
+    .object({
+      english: z.boolean().describe('True if you wrote any of the English wording yourself (it was not printed on a card).'),
+      french: z.boolean().describe('True if you wrote any of the French wording yourself (it was not printed on a card).'),
+    })
+    .describe('Which language you had to translate rather than copy.'),
   uncertain: z
     .array(z.string())
-    .describe('Short notes, in plain English, on anything hard to read or that you had to guess. Empty if everything was clear.'),
+    .describe(
+      'Short notes, in plain English, on anything hard to read, that you had to guess, or that differs between the English and French cards. Empty if everything was clear.',
+    ),
 })
 
 type MenuCard = z.infer<typeof MenuCardSchema>
 
-const SYSTEM = `You read photos of the printed menu cards of Eleanor Jessica, a private chef in France, for her "Dine at Home" evenings: a themed four-course menu customers collect and finish at home.
+const SYSTEM = `You read the printed menu cards (photos or PDFs) of Eleanor Jessica, a private chef in France, for her "Dine at Home" evenings: a themed four-course menu customers collect and finish at home.
 
 Copy the menu exactly as printed, keeping her wording, spelling and accents (fix only obvious capitalisation, e.g. spaced capitals in the title). Do not invent dishes, components, prices or dates. Courses are in printed order. A course offering two or more dishes joined by "or" is a "choice" course with one entry per dish; its components line (printed once, under the dishes) is the course description. "(v)" after a dish means vegetarian. Join a description that wraps onto two printed lines into one line, with components separated by " · ".
 
-Her cards are usually printed in English. Each text also has a French field ("titleFr", "nameFr", …) for the French version of her website: write natural, appetising French as a French restaurant menu would, keeping dish names that are proper names or foreign words (e.g. "makhani", "bombay potato" may stay as they are if a French menu would keep them). If the card is printed in French, put the printed French in the French fields and a faithful English translation in the main fields.
+Every text has an English field ("title", "name", …) and a French field ("titleFr", "nameFr", …), for the two languages of her website. You are given her English card, her French card, or both; each is labelled.
+- With both cards: they are the same menu. Copy the English fields word for word from the English card and the French fields word for word from the French card; translate nothing. Match them course by course and dish by dish. If they differ (a dish or course on only one card, a different price or date, a different (v) mark), follow the English card for the menu itself and say exactly what differs in "uncertain".
+- With one card: copy its language exactly, and write the other language yourself. French: natural, appetising French as a French restaurant menu would, keeping dish names that are proper names or foreign words (e.g. "makhani", "bombay potato" may stay as they are if a French menu would keep them). English: a faithful translation. Set "translated" for the language you wrote. A card in the other box's language (e.g. a French card given as the English one) is fine: treat it as what it really is.
+- A PDF with several pages: read the menu on it. If it holds more than one different menu, use the first and say so in "uncertain".
 
 Ignore the logo, "Dine at Home" heading and decorative lines. If anything is unreadable or you had to guess, say so in "uncertain" rather than guessing silently.`
 
@@ -77,14 +91,17 @@ export type MenuCardDraft = {
 
 export type MenuCardResult = { ok: true; draft: MenuCardDraft } | { ok: false; error: string; status: number }
 
-export const MENU_CARD_MEDIA_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const
+export const MENU_CARD_MEDIA_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'] as const
 type MediaType = (typeof MENU_CARD_MEDIA_TYPES)[number]
+
+/** One card as sent by the console: which language box it was given in, and the file. */
+export type MenuCardFile = { language: 'en' | 'fr'; data: string; mediaType: MediaType }
 
 export function menuCardReaderReady(): boolean {
   return Boolean(process.env.ANTHROPIC_API_KEY)
 }
 
-export async function readMenuCard(imageBase64: string, mediaType: MediaType): Promise<MenuCardResult> {
+export async function readMenuCard(cards: MenuCardFile[]): Promise<MenuCardResult> {
   if (!menuCardReaderReady()) {
     return {
       ok: false,
@@ -104,15 +121,7 @@ export async function readMenuCard(imageBase64: string, mediaType: MediaType): P
       fallbacks: 'default',
       output_config: { effort: 'medium', format: betaZodOutputFormat(MenuCardSchema) },
       system: SYSTEM,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            { type: 'image', source: { type: 'base64', media_type: mediaType, data: imageBase64 } },
-            { type: 'text', text: 'Please read this menu card.' },
-          ],
-        },
-      ],
+      messages: [{ role: 'user', content: cardContent(cards) }],
     })
   } catch (err) {
     console.error('Menu card reader failed', err)
@@ -123,7 +132,11 @@ export async function readMenuCard(imageBase64: string, mediaType: MediaType): P
       return { ok: false, status: 503, error: 'The menu reader is busy. Please try again in a minute.' }
     }
     if (err instanceof Anthropic.BadRequestError) {
-      return { ok: false, status: 400, error: 'That photo couldn’t be read. Please try another (a JPEG or PNG photo of the card).' }
+      return {
+        ok: false,
+        status: 400,
+        error: 'That file couldn’t be read. Please try another (a photo or a PDF of the card, not password-protected).',
+      }
     }
     return { ok: false, status: 502, error: 'The menu reader isn’t answering right now. Please try again shortly.' }
   }
@@ -138,13 +151,37 @@ export async function readMenuCard(imageBase64: string, mediaType: MediaType): P
     return { ok: false, status: 502, error: 'The menu couldn’t be read completely. Please try again.' }
   }
   if (!card.isMenuCard || card.courses.length === 0) {
-    return { ok: false, status: 422, error: 'This doesn’t look like a menu card. Please choose a photo of the printed menu.' }
+    return {
+      ok: false,
+      status: 422,
+      error: 'This doesn’t look like a menu card. Please choose a photo or PDF of the printed menu.',
+    }
   }
   return { ok: true, draft: toDraft(card) }
 }
 
+/** The cards as Claude sees them: each one labelled with the box it was given in. */
+function cardContent(cards: MenuCardFile[]): Anthropic.Beta.BetaContentBlockParam[] {
+  const content: Anthropic.Beta.BetaContentBlockParam[] = []
+  for (const c of cards) {
+    content.push({ type: 'text', text: c.language === 'fr' ? 'Her French card:' : 'Her English card:' })
+    content.push(
+      c.mediaType === 'application/pdf'
+        ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: c.data } }
+        : { type: 'image', source: { type: 'base64', media_type: c.mediaType, data: c.data } },
+    )
+  }
+  content.push({
+    type: 'text',
+    text: cards.length > 1 ? 'Please read these two menu cards: the same menu in English and in French.' : 'Please read this menu card.',
+  })
+  return content
+}
+
 function toDraft(card: MenuCard): MenuCardDraft {
   const notes = [...card.uncertain]
+  if (card.translated.english) notes.push('The English wording was written by Claude from the French card: please read it through.')
+  if (card.translated.french) notes.push('The French wording was written by Claude: please read it through before opening the evening.')
   const date = cardDate(card.date)
   if (card.date && !date) notes.push('The date on the card didn’t make sense, so it was left empty.')
   const price = card.pricePerPersonEuros
