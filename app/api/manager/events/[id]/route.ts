@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { checkRequestPin } from '@/lib/pins'
 import {
   STATUSES,
-  deleteTestEvent,
+  deleteEvent,
   getManagerEvent,
   parseEvent,
   saveEvent,
@@ -41,9 +41,9 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   return NextResponse.json(result, { status: result.ok ? 200 : 400 })
 }
 
-/** Console: delete a TEST event and its orders (real events are refused). */
+/** Console: delete a test evening (with its orders) or a real draft with no orders. */
 export async function DELETE(req: NextRequest, { params }: Ctx) {
   if (!checkRequestPin(req, 'manager')) return denied()
-  const result = await deleteTestEvent((await params).id)
+  const result = await deleteEvent((await params).id)
   return NextResponse.json(result, { status: result.ok ? 200 : 400 })
 }

@@ -219,6 +219,9 @@ function EventEditor({
 
   const facts = remote.data?.facts
   const isNew = !id
+  // Test evenings can always be deleted; real ones only while still a draft with no orders.
+  // (The server makes the final check, which also counts cancelled and expired orders.)
+  const canDelete = !!form && (form.isTest || (form.status === 'draft' && (facts?.orderCount ?? 0) === 0))
   const usedOptions = new Set(facts?.usedOptionIds ?? [])
   const usedPoints = new Set(facts?.usedPointIds ?? [])
 
@@ -281,7 +284,7 @@ function EventEditor({
     const orders = facts?.orderCount ?? 0
     if (
       !window.confirm(
-        `Delete the test evening “${form!.title}”` +
+        `Delete the ${form!.isTest ? 'test ' : ''}evening “${form!.title}”` +
           (orders ? ` and its ${orders} order${orders === 1 ? '' : 's'}` : '') +
           '? This can’t be undone.',
       )
@@ -679,19 +682,23 @@ function EventEditor({
             <button type="button" className={buttonStyles('outline', 'px-5 py-2')} onClick={duplicate} disabled={busy}>
               Duplicate this evening
             </button>
-            {form.isTest ? (
+            {canDelete ? (
               <button
                 type="button"
                 className={buttonStyles('outline', 'border-destructive/60 px-5 py-2 text-destructive hover:border-destructive hover:text-destructive')}
                 onClick={remove}
                 disabled={busy}
               >
-                Delete test evening
+                {form.isTest ? 'Delete test evening' : 'Delete this draft'}
               </button>
             ) : null}
           </div>
-          {!form.isTest ? (
-            <p className="text-sm text-stone">Real evenings can’t be deleted. Use “Back to draft” to hide one.</p>
+          {!canDelete ? (
+            <p className="text-sm text-stone">
+              {form.status === 'draft'
+                ? 'This evening has orders, so it can’t be deleted.'
+                : 'Real evenings can only be deleted while they’re a draft with no orders. Use “Back to draft” to hide one.'}
+            </p>
           ) : null}
         </Panel>
       ) : null}

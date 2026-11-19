@@ -370,16 +370,32 @@ export async function setStatus(id: string, status: ManagerStatus): Promise<Save
   return { ok: true, id }
 }
 
-/** Deletes a TEST event and all its orders. Real events are never deleted. */
-export async function deleteTestEvent(id: string): Promise<SaveResult> {
+/**
+ * Deletes an evening. A TEST evening goes with all its orders. A real evening can only be
+ * deleted while it is still a draft and has never had an order (not even a cancelled one),
+ * so nothing a customer saw or booked is ever lost.
+ */
+export async function deleteEvent(id: string): Promise<SaveResult> {
   if (!/^\d+$/.test(id)) return { ok: false, error: 'Not found.' }
   const results = await transaction([
     {
       text: `DELETE FROM orders WHERE event_id = (SELECT id FROM events WHERE id = $1 AND is_test)`,
       params: [id],
     },
-    { text: `DELETE FROM events WHERE id = $1 AND is_test RETURNING id::text`, params: [id] },
+    {
+      text: `DELETE FROM events e
+              WHERE e.id = $1
+                AND (e.is_test
+                     OR (e.status = 'draft'
+                         AND NOT EXISTS (SELECT 1 FROM orders o WHERE o.event_id = e.id)))
+              RETURNING e.id::text`,
+      params: [id],
+    },
   ])
-  if (!results[1].length) return { ok: false, error: 'Only test evenings can be deleted.' }
+  if (!results[1].length)
+    return {
+      ok: false,
+      error: 'Only test evenings, or real evenings that are still drafts with no orders, can be deleted.',
+    }
   return { ok: true, id }
 }
