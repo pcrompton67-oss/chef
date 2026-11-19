@@ -10,6 +10,8 @@ import type { EventListItem } from '@/lib/manager-events'
 import {
   METHOD_LABEL,
   SOURCE_LABEL,
+  canChangeOrder,
+  repriceOrder,
   type ConsoleOrder,
   type OrderAction,
 } from '@/lib/order-editing'
@@ -30,6 +32,8 @@ export function OrdersTab() {
   const events = useSWR<{ events?: EventListItem[] }>('/api/manager/events', fetcher)
   const [eventId, setEventId] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
+  // The order being changed (issue #21); shown in place of the list, like "Add an order".
+  const [editing, setEditing] = useState<ConsoleOrder | null>(null)
   const [filter, setFilter] = useState<Filter>('active')
 
   // Start on the next evening to come (or the latest one if none are coming).
@@ -73,6 +77,7 @@ export function OrdersTab() {
             onChange={(e) => {
               setEventId(e.target.value)
               setAdding(false)
+              setEditing(null)
             }}
           >
             {list.map((e) => (
@@ -83,7 +88,7 @@ export function OrdersTab() {
             ))}
           </select>
         </label>
-        {!adding ? (
+        {!adding && !editing ? (
           <button type="button" className={buttonStyles('solid')} onClick={() => setAdding(true)} disabled={!event}>
             Add an order
           </button>
@@ -92,15 +97,18 @@ export function OrdersTab() {
 
       {!event || !all ? (
         <p className="text-sm text-stone">Loading…</p>
-      ) : adding ? (
+      ) : adding || editing ? (
         <AddOrder
+          key={editing?.id ?? 'new'}
           event={event}
+          order={editing}
           placesLeft={event.capacity - takenBy(all)}
           onDone={(saved) => {
             setAdding(false)
+            setEditing(null)
             if (saved) {
               refresh()
-              setFilter('active')
+              if (!editing) setFilter('active')
             }
             window.scrollTo(0, 0)
           }}
@@ -126,7 +134,15 @@ export function OrdersTab() {
               </button>
             ))}
           </div>
-          <OrderList event={event} orders={all.filter((o) => matches(o, filter))} onChanged={refresh} />
+          <OrderList
+            event={event}
+            orders={all.filter((o) => matches(o, filter))}
+            onChanged={refresh}
+            onEdit={(o) => {
+              setEditing(o)
+              window.scrollTo(0, 0)
+            }}
+          />
         </>
       )}
     </div>
@@ -179,10 +195,12 @@ function OrderList({
   event,
   orders,
   onChanged,
+  onEdit,
 }: {
   event: EditableEvent
   orders: ConsoleOrder[]
   onChanged: () => void
+  onEdit: (o: ConsoleOrder) => void
 }) {
   const [open, setOpen] = useState<string | null>(null)
   if (!orders.length) return <p className="text-sm text-stone">No orders here.</p>
@@ -207,7 +225,7 @@ function OrderList({
               {o.diners} diner{o.diners === 1 ? '' : 's'} · {o.place} {o.time} · {owed(o)}
             </span>
           </button>
-          {open === o.id ? <OrderDetail event={event} order={o} onChanged={onChanged} /> : null}
+          {open === o.id ? <OrderDetail event={event} order={o} onChanged={onChanged} onEdit={() => onEdit(o)} /> : null}
         </li>
       ))}
     </ul>
@@ -218,10 +236,12 @@ function OrderDetail({
   event,
   order: o,
   onChanged,
+  onEdit,
 }: {
   event: EditableEvent
   order: ConsoleOrder
   onChanged: () => void
+  onEdit: () => void
 }) {
   const [reference, setReference] = useState('')
   const [busy, setBusy] = useState(false)
@@ -374,6 +394,11 @@ function OrderDetail({
         ) : null}
 
         <div className="flex flex-wrap gap-3">
+          {canChangeOrder(o) ? (
+            <button type="button" className={buttonStyles('outline', 'px-5 py-2')} disabled={busy} onClick={onEdit}>
+              Change order
+            </button>
+          ) : null}
           {o.collected ? (
             <button type="button" className={buttonStyles('text')} disabled={busy} onClick={() => act({ action: 'undo_collected' })}>
               Undo “collected”
@@ -387,11 +412,11 @@ function OrderDetail({
               onClick={() =>
                 act(
                   { action: 'refund_card' },
-                  `Refund ${money(Math.min(o.refundCents, o.depositCents))} to ${o.name}’s card through Stripe? This can’t be undone.`,
+                  `Refund ${money(cardRefund(o))} to ${o.name}’s card through Stripe? This can’t be undone.`,
                 )
               }
             >
-              Refund {money(Math.min(o.refundCents, o.depositCents))} by card
+              Refund {money(cardRefund(o))} by card
             </button>
           ) : null}
           {o.refundStatus === 'requested' || o.refundStatus === 'partial' ? (
@@ -438,26 +463,31 @@ function OrderDetail({
   )
 }
 
-/* ---------- Add an order ---------- */
+/* ---------- Add an order, or change one (issue #21) ---------- */
 
 function AddOrder({
   event,
-  placesLeft,
+  order,
+  placesLeft: placesLeftForAll,
   onDone,
 }: {
   event: EditableEvent
+  /** The order being changed; empty when adding a new one. */
+  order?: ConsoleOrder | null
   placesLeft: number
   onDone: (saved: boolean) => void
 }) {
+  // When changing an order, its own places count as free for it.
+  const placesLeft = placesLeftForAll + (order?.takesPlaces ? order.diners : 0)
   const [f, setF] = useState({
-    collectionPointId: event.collectionPoints[0]?.id ?? '',
-    diners: 2,
-    name: '',
-    mobile: '',
-    email: '',
-    allergies: '',
-    notes: '',
-    language: 'fr' as 'en' | 'fr',
+    collectionPointId: order?.collectionPointId ?? event.collectionPoints[0]?.id ?? '',
+    diners: order?.diners ?? 2,
+    name: order?.name ?? '',
+    mobile: order?.mobile ?? '',
+    email: order?.email ?? '',
+    allergies: order?.allergies ?? '',
+    notes: order?.notes ?? '',
+    language: order?.language ?? ('fr' as 'en' | 'fr'),
     source: 'phone',
     paymentMethod: 'cash',
     depositPaid: false,
@@ -465,7 +495,9 @@ function AddOrder({
     marketing: false,
     overbook: false,
   })
-  const [choices, setChoices] = useState<Record<string, number>>({})
+  const [choices, setChoices] = useState<Record<string, number>>(() =>
+    Object.fromEntries((order?.lines ?? []).map((l) => [l.optionId, l.quantity])),
+  )
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const set = (patch: Partial<typeof f>) => {
@@ -480,13 +512,16 @@ function AddOrder({
     [choiceCourses, choices],
   )
   const dishesOk = tallies.every((t) => t === f.diners)
-  const over = f.diners > placesLeft
+  // Fewer diners (or the same) never needs "Book anyway", even on a full evening.
+  const over = f.diners > placesLeft && (!order || f.diners > order.diners)
+  const newMoney = order ? repriceOrder(order, f.diners) : null
 
   async function save() {
     setBusy(true)
     setError('')
     try {
-      await send('/api/manager/orders', 'POST', { ...f, eventId: event.id, choices })
+      if (order) await send(`/api/manager/orders/${order.id}`, 'PUT', { ...f, choices })
+      else await send('/api/manager/orders', 'POST', { ...f, eventId: event.id, choices })
       onDone(true)
     } catch (err) {
       setError((err as Error).message)
@@ -500,22 +535,28 @@ function AddOrder({
   return (
     <section className="space-y-8 border border-border bg-ivory px-4 py-6 sm:px-6">
       <div className="space-y-1">
-        <h2 className="text-3xl text-charcoal">Add an order</h2>
+        <h2 className="text-3xl text-charcoal">{order ? `Change ${order.name}’s order` : 'Add an order'}</h2>
         <p className="text-sm text-stone">
-          {placesLeft > 0 ? `${placesLeft} place${placesLeft === 1 ? '' : 's'} left.` : 'No places left.'}
+          {order
+            ? `${Math.max(placesLeft, 0)} place${placesLeft === 1 ? '' : 's'} available for this order (including its own ${order.diners}). The customer isn’t emailed about the change: please let them know yourself.`
+            : placesLeft > 0
+              ? `${placesLeft} place${placesLeft === 1 ? '' : 's'} left.`
+              : 'No places left.'}
         </p>
       </div>
 
       <div className="grid gap-6 sm:grid-cols-2">
-        <Field label="Came in by">
-          <select className={inputClass} value={f.source} onChange={(e) => set({ source: e.target.value })}>
-            {['phone', 'whatsapp', 'email', 'messenger', 'in_person'].map((s) => (
-              <option key={s} value={s}>
-                {SOURCE_LABEL[s]}
-              </option>
-            ))}
-          </select>
-        </Field>
+        {!order ? (
+          <Field label="Came in by">
+            <select className={inputClass} value={f.source} onChange={(e) => set({ source: e.target.value })}>
+              {['phone', 'whatsapp', 'email', 'messenger', 'in_person'].map((s) => (
+                <option key={s} value={s}>
+                  {SOURCE_LABEL[s]}
+                </option>
+              ))}
+            </select>
+          </Field>
+        ) : null}
         <Field label="Collection point">
           <select className={inputClass} value={f.collectionPointId} onChange={(e) => set({ collectionPointId: e.target.value })}>
             {event.collectionPoints.map((p) => (
@@ -577,7 +618,7 @@ function AddOrder({
         <Field label="Mobile">
           <input type="tel" className={inputClass} value={f.mobile} onChange={(e) => set({ mobile: e.target.value })} />
         </Field>
-        <Field label="Email (optional)">
+        <Field label={order?.source === 'website' ? 'Email' : 'Email (optional)'}>
           <input type="email" className={inputClass} value={f.email} onChange={(e) => set({ email: e.target.value })} />
         </Field>
         <Field label="Language">
@@ -594,35 +635,39 @@ function AddOrder({
         <textarea rows={2} className={inputClass} value={f.notes} onChange={(e) => set({ notes: e.target.value })} />
       </Field>
 
-      <div className="space-y-4">
-        <p className="text-sm text-charcoal">
-          Total {money(event.priceCents * f.diners)} · deposit {money(event.depositCents * f.diners)}
-        </p>
-        <Field label="Deposit paid by">
-          <select className={inputClass} value={f.paymentMethod} onChange={(e) => set({ paymentMethod: e.target.value })}>
-            {['cash', 'cheque', 'bank_transfer', 'card'].map((m) => (
-              <option key={m} value={m}>
-                {METHOD_LABEL[m]}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <label className="flex cursor-pointer gap-3 text-sm text-charcoal">
-          <input type="checkbox" className="tick mt-0.5" checked={f.depositPaid} onChange={(e) => set({ depositPaid: e.target.checked })} />
-          The deposit has already been paid
-        </label>
-        {f.depositPaid ? (
-          <Field label="Reference (optional)">
-            <input className={inputClass} value={f.reference} onChange={(e) => set({ reference: e.target.value })} />
+      {order && newMoney ? (
+        <ChangedMoney order={order} diners={f.diners} money={newMoney} />
+      ) : (
+        <div className="space-y-4">
+          <p className="text-sm text-charcoal">
+            Total {money(event.priceCents * f.diners)} · deposit {money(event.depositCents * f.diners)}
+          </p>
+          <Field label="Deposit paid by">
+            <select className={inputClass} value={f.paymentMethod} onChange={(e) => set({ paymentMethod: e.target.value })}>
+              {['cash', 'cheque', 'bank_transfer', 'card'].map((m) => (
+                <option key={m} value={m}>
+                  {METHOD_LABEL[m]}
+                </option>
+              ))}
+            </select>
           </Field>
-        ) : null}
-        {f.email ? (
           <label className="flex cursor-pointer gap-3 text-sm text-charcoal">
-            <input type="checkbox" className="tick mt-0.5" checked={f.marketing} onChange={(e) => set({ marketing: e.target.checked })} />
-            They agreed to receive new box dates and other news by email
+            <input type="checkbox" className="tick mt-0.5" checked={f.depositPaid} onChange={(e) => set({ depositPaid: e.target.checked })} />
+            The deposit has already been paid
           </label>
-        ) : null}
-      </div>
+          {f.depositPaid ? (
+            <Field label="Reference (optional)">
+              <input className={inputClass} value={f.reference} onChange={(e) => set({ reference: e.target.value })} />
+            </Field>
+          ) : null}
+          {f.email ? (
+            <label className="flex cursor-pointer gap-3 text-sm text-charcoal">
+              <input type="checkbox" className="tick mt-0.5" checked={f.marketing} onChange={(e) => set({ marketing: e.target.checked })} />
+              They agreed to receive new box dates and other news by email
+            </label>
+          ) : null}
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center gap-4">
         <button
@@ -631,7 +676,7 @@ function AddOrder({
           onClick={save}
           disabled={busy || !dishesOk || (over && !f.overbook)}
         >
-          {busy ? 'Saving…' : 'Save order'}
+          {busy ? 'Saving…' : order ? 'Save changes' : 'Save order'}
         </button>
         <button type="button" className={buttonStyles('text')} onClick={() => onDone(false)}>
           Cancel
@@ -640,6 +685,34 @@ function AddOrder({
       </div>
       {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
     </section>
+  )
+}
+
+/** What changing the diners does to the money (issue #21). */
+function ChangedMoney({ order: o, diners, money: m }: { order: ConsoleOrder; diners: number; money: ReturnType<typeof repriceOrder> }) {
+  const pendingBefore = o.refundStatus === 'requested' ? o.refundCents : 0
+  return (
+    <div className="space-y-2 text-sm text-charcoal">
+      <p>
+        Total {money(m.totalCents)} · deposit {money(m.depositCents)}{' '}
+        {o.depositPaid ? '(paid)' : '(not paid yet)'} · {money(m.balanceCents)} at collection
+      </p>
+      {diners !== o.diners ? (
+        <p className="text-stone">
+          Was {money(o.totalCents)} for {o.diners} diner{o.diners === 1 ? '' : 's'}, at the price per person when they ordered.
+          {o.depositPaid && m.refundCents === pendingBefore && diners > o.diners
+            ? ' The deposit already paid stays as it is; the extra is paid at collection.'
+            : ''}
+        </p>
+      ) : null}
+      {m.refundCents !== pendingBefore ? (
+        <p className={m.refundCents > 0 ? 'text-destructive' : 'text-stone'}>
+          {m.refundCents > 0
+            ? `${money(m.refundCents)} of the deposit paid will be marked “refund to send”.`
+            : 'No refund will be owed any more.'}
+        </p>
+      ) : null}
+    </div>
   )
 }
 
@@ -734,10 +807,12 @@ function owed(o: ConsoleOrder): string {
     if (o.refundStatus === 'requested' || o.refundStatus === 'partial') return `refund ${money(o.refundCents)} to send`
     return 'nothing owed'
   }
-  if (o.collected) return 'paid in full'
+  // A refund owed after fewer diners (issue #21).
+  const refund = o.refundStatus === 'requested' || o.refundStatus === 'partial' ? ` · refund ${money(o.refundCents)} to send` : ''
+  if (o.collected) return 'paid in full' + refund
   if (!o.depositPaid && o.depositCents > 0)
     return `deposit ${money(o.depositCents)} due, then ${money(o.balanceCents)} at collection`
-  return `${money(o.balanceCents)} due at collection`
+  return `${money(o.balanceCents)} due at collection` + refund
 }
 
 function matches(o: ConsoleOrder, f: Filter): boolean {
@@ -754,6 +829,11 @@ function matches(o: ConsoleOrder, f: Filter): boolean {
     case 'cancelled':
       return !live
   }
+}
+
+/** The part of a refund that goes back by card (a balance paid at collection was cash or cheque). */
+function cardRefund(o: ConsoleOrder) {
+  return o.refundCents - (o.balanceMethod && o.collected ? o.balanceCents : 0)
 }
 
 function takenBy(orders: ConsoleOrder[]) {

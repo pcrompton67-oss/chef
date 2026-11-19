@@ -179,29 +179,34 @@ export async function checkCardPayment(sessionId: string): Promise<{ confirmedNo
 export type RefundResult = { ok: true; refundedCents: number } | { ok: false; error: string }
 
 /**
- * Refunds a cancelled card order's deposit through Stripe and records it.
+ * Refunds a card order's deposit through Stripe and records it: a cancelled
+ * order, or the part of the deposit owed back after Eleanor reduced the diners (issue #21).
  * Anything paid another way (e.g. a balance paid in cash) stays "to send" by hand.
  */
 export async function refundCardOrder(orderId: string): Promise<RefundResult> {
   if (!cardPaymentsReady()) return { ok: false, error: 'Card payments aren’t set up (Stripe keys missing in Vercel).' }
-  const [o] = await query<{ ref: string; deposit: number; refund: number; paid: boolean }>(
-    `SELECT payment_reference AS ref, deposit_cents AS deposit, refund_cents AS refund,
-            deposit_paid_at IS NOT NULL AS paid
+  const [o] = await query<{ ref: string; refund: number; cash: number; paid: boolean; stamp: string }>(
+    `SELECT payment_reference AS ref, refund_cents AS refund,
+            CASE WHEN balance_paid_at IS NOT NULL THEN balance_cents ELSE 0 END AS cash,
+            deposit_paid_at IS NOT NULL AS paid, updated_at::text AS stamp
        FROM orders
-      WHERE id = $1 AND payment_method = 'card' AND status = 'cancelled'
-        AND refund_status IN ('requested', 'partial')`,
+      WHERE id = $1 AND payment_method = 'card' AND refund_status IN ('requested', 'partial')`,
     [orderId],
   )
   if (!o) return { ok: false, error: 'That can’t be done for this order any more. Please refresh the page.' }
   if (!o.paid || !o.ref?.startsWith('pi_'))
     return { ok: false, error: 'This order wasn’t paid through the website, so it can’t be refunded by card here. Please refund it yourself, then press “Refund sent”.' }
 
-  const amount = Math.min(o.refund, o.deposit)
+  // Only what was paid by card goes back by card: a balance paid at collection
+  // (cash or cheque) stays "to send" by hand.
+  const amount = o.refund - o.cash
+  if (amount <= 0) return { ok: false, error: 'Nothing left to refund by card. Please refund the rest yourself, then press “Refund sent”.' }
   let refundId: string
   try {
     const refund = await stripe().refunds.create(
       { payment_intent: o.ref, amount, metadata: { order_id: orderId } },
-      { idempotencyKey: `refund-${orderId}-${amount}` },
+      // Pressing twice can't refund twice; a later refund (after another change) gets a new key.
+      { idempotencyKey: `refund-${orderId}-${amount}-${o.stamp}` },
     )
     refundId = refund.id
   } catch (err) {

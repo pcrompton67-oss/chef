@@ -1,7 +1,7 @@
 import { NextResponse, after, type NextRequest } from 'next/server'
 import { emailBookingConfirmed } from '@/lib/emails'
 import { checkRequestPin } from '@/lib/pins'
-import { applyOrderAction } from '@/lib/manager-orders'
+import { applyOrderAction, changeOrder } from '@/lib/manager-orders'
 import type { OrderAction } from '@/lib/order-editing'
 import { refundCardOrder } from '@/lib/stripe'
 
@@ -19,4 +19,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // Deposit received: the customer gets their confirmation, with the address.
   if (result.ok && body.action === 'deposit_received') after(() => emailBookingConfirmed(id))
   return NextResponse.json(result, { status: result.ok ? 200 : 400 })
+}
+
+/** Console: change an order (diners, dishes, collection point, contact …; issue #21). No email is sent. */
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  if (!checkRequestPin(req, 'manager')) return NextResponse.json({ error: 'PIN required' }, { status: 401 })
+  const result = await changeOrder((await params).id, await req.json().catch(() => null))
+  return NextResponse.json(result, { status: result.ok ? 200 : result.overCapacity ? 409 : 400 })
 }

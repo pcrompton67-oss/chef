@@ -28,7 +28,7 @@ export type ConsoleOrder = {
   overdue: boolean
   /** A website card order whose customer is on Stripe's payment page right now (issue #14). */
   payingByCard: boolean
-  /** A cancelled card order paid on the website: its refund can go back through Stripe. */
+  /** A card order paid on the website with money to give back: its refund can go back through Stripe. */
   cardRefundable: boolean
   totalCents: number
   depositCents: number
@@ -69,6 +69,57 @@ export type ManualOrderInput = {
   reference: string
   marketing: boolean
   overbook: boolean
+}
+
+/** What Eleanor can change on an existing order (issue #21). */
+export type OrderChangeInput = {
+  collectionPointId: string
+  diners: number
+  choices: Record<string, number>
+  name: string
+  mobile: string
+  email: string
+  allergies: string
+  notes: string
+  language: 'en' | 'fr'
+  overbook: boolean
+}
+
+/**
+ * Whether an order can still be changed: not cancelled, expired or collected,
+ * and not a website card order still waiting for its payment.
+ */
+export function canChangeOrder(o: Pick<ConsoleOrder, 'status' | 'collected' | 'paymentMethod' | 'source' | 'depositPaid'>) {
+  if (o.status !== 'held' && o.status !== 'awaiting_transfer' && o.status !== 'confirmed') return false
+  if (o.collected) return false
+  return !(o.paymentMethod === 'card' && o.source === 'website' && o.status === 'held' && !o.depositPaid)
+}
+
+export type OrderMoney = { totalCents: number; depositCents: number; balanceCents: number; refundCents: number }
+
+/**
+ * The money on an order after changing its number of diners (issue #21).
+ * Uses the order's own price per person (not today's price of the evening).
+ * - Deposit not paid yet: deposit and balance are worked out again.
+ * - Deposit paid: it stays as paid and only the balance changes. If the paid
+ *   deposit is more than the new total, the difference is a refund to send.
+ * `refundCents` is the refund still to send after the change.
+ */
+export function repriceOrder(
+  o: Pick<ConsoleOrder, 'diners' | 'totalCents' | 'depositCents' | 'depositPaid' | 'refundStatus' | 'refundCents'>,
+  diners: number,
+): OrderMoney {
+  const pricePer = Math.round(o.totalCents / o.diners)
+  const total = pricePer * diners
+  const pendingRefund = o.refundStatus === 'requested' ? o.refundCents : 0
+  if (!o.depositPaid) {
+    const deposit = Math.min(Math.round(o.depositCents / o.diners) * diners, total)
+    return { totalCents: total, depositCents: deposit, balanceCents: total - deposit, refundCents: pendingRefund }
+  }
+  // A refund still to send from an earlier change is money already paid as deposit.
+  const paid = o.depositCents + pendingRefund
+  const deposit = Math.min(paid, total)
+  return { totalCents: total, depositCents: deposit, balanceCents: total - deposit, refundCents: paid - deposit }
 }
 
 export const SOURCE_LABEL: Record<string, string> = {
