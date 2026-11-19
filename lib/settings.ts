@@ -50,3 +50,21 @@ export async function saveBusinessSettings(raw: unknown): Promise<BusinessSettin
   )
   return value
 }
+
+/* ---------- Home page photo (issue #37; settings key 'site') ---------- */
+
+/** The photo at the top of the home page; empty = the usual one (CEJ_Food2.jpg). */
+export async function getHomeImage(): Promise<string> {
+  const [row] = await query<{ value: { homeImage?: string } }>(`SELECT value FROM settings WHERE key = 'site'`)
+  return typeof row?.value?.homeImage === 'string' ? row.value.homeImage : ''
+}
+
+/** Saves the home page photo (already checked by the caller). */
+export async function saveHomeImage(url: string): Promise<string> {
+  await query(
+    `INSERT INTO settings (key, value) VALUES ('site', jsonb_build_object('homeImage', $1::text))
+     ON CONFLICT (key) DO UPDATE SET value = settings.value || EXCLUDED.value, updated_at = now()`,
+    [url],
+  )
+  return url
+}

@@ -17,11 +17,14 @@ export function DineAtHomePage({
   path,
   upcoming,
   past,
+  homeImage,
 }: {
   locale: Locale
   path: string
   upcoming: EventSummary[]
   past: EventSummary[]
+  /** Chosen in Console → Settings (issue #37); empty = the usual photo. */
+  homeImage?: string
 }) {
   const c = t(locale).dineAtHome
   return (
@@ -32,8 +35,8 @@ export function DineAtHomePage({
         {/* Hero photo: tall on phones, a wide crop on larger screens. */}
         <div className="relative aspect-[4/5] w-full overflow-hidden bg-charcoal sm:aspect-[16/9] lg:aspect-[21/9]">
           <Image
-            src="/CEJ_Food2.jpg"
-            alt={c.heroAlt}
+            src={homeImage || '/CEJ_Food2.jpg'}
+            alt={homeImage ? t(locale).event.heroAlt : c.heroAlt}
             fill
             priority
             sizes="100vw"

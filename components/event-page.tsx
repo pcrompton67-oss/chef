@@ -131,8 +131,8 @@ export function EventPage({
           <div className="mx-auto grid max-w-4xl items-center gap-14 sm:grid-cols-2 sm:gap-16">
             <FadeIn className="order-2 sm:order-1">
               <Image
-                src="/CEF_Food1.jpg"
-                alt={c.secondImageAlt}
+                src={e.secondImage || '/CEF_Food1.jpg'}
+                alt={e.secondImage ? c.heroAlt : c.secondImageAlt}
                 width={1450}
                 height={1934}
                 sizes="(min-width: 640px) 45vw, 100vw"

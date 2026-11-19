@@ -35,7 +35,10 @@ export type EventSummary = {
 
 export type EventDetail = EventSummary & {
   intro: string | null
+  /** The printed menu (photo or PDF) for this language, falling back to the other one (issue #37). */
   menuImage: string | null
+  /** The photo further down the page; null = the site's usual one (issue #37). */
+  secondImage: string | null
   cutoffAt: string // ISO timestamp
   courses: {
     id: string
@@ -59,6 +62,8 @@ type EventRow = {
   intro_fr: string | null
   hero_image: string | null
   menu_image: string | null
+  menu_image_fr: string | null
+  second_image: string | null
   price_cents: number
   deposit_cents: number
   status: EventStatus
@@ -74,7 +79,7 @@ type EventRow = {
 const EVENT_COLUMNS = `
   e.id::text, e.slug, e.title, e.theme, e.event_date::text AS date, e.intro,
   e.title_fr, e.theme_fr, e.intro_fr,
-  e.hero_image, e.menu_image, e.price_cents, e.deposit_cents, e.status, e.is_test,
+  e.hero_image, e.menu_image, e.menu_image_fr, e.second_image, e.price_cents, e.deposit_cents, e.status, e.is_test,
   to_char(e.cutoff_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS cutoff_at,
   e.cutoff_at < now() AS cutoff_passed,
   e.event_date < (now() AT TIME ZONE 'Europe/Paris')::date AS is_past,
@@ -172,7 +177,9 @@ export async function getEvent(slug: string, locale: Locale = 'en'): Promise<Eve
   return {
     ...toSummary(row, locale),
     intro: pick(row.intro, row.intro_fr, locale),
-    menuImage: row.menu_image,
+    menuImage:
+      locale === 'fr' ? row.menu_image_fr || row.menu_image || null : row.menu_image || row.menu_image_fr || null,
+    secondImage: row.second_image || null,
     cutoffAt: row.cutoff_at,
     courses: courseRows.map((c) => ({
       id: c.id,

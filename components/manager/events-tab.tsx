@@ -2,13 +2,10 @@
 
 import { useEffect, useState, type ReactNode } from 'react'
 import useSWR from 'swr'
-import { fetcher, pinHeaders, send } from '@/app/manager/manager-console'
+import { fetcher, send } from '@/app/manager/manager-console'
 import { buttonStyles } from '@/components/site/button-styles'
 import { SITE_URL } from '@/lib/site'
 import {
-  IMAGES,
-  isUploadedPhoto,
-  type UploadedPhoto,
   type CollectionPlace,
   type EditableCourse,
   type EditableOption,
@@ -20,6 +17,7 @@ import {
 import type { EventListItem } from '@/lib/manager-events'
 import type { MenuCardDraft } from '@/lib/menu-card'
 import { MenuCardStart } from '@/components/manager/menu-card-start'
+import { ImagePicker, PrintedMenuPicker } from '@/components/manager/image-picker'
 import { cn } from '@/lib/utils'
 
 /* Console → Events: list, create, edit, duplicate, open/close and delete test evenings. */
@@ -504,8 +502,34 @@ function EventEditor({
           <textarea lang="fr" rows={3} className={inputClass} value={form.introFr} onChange={(e) => update({ introFr: e.target.value })} />
         </Field>
         <div className="grid gap-6 sm:grid-cols-2">
-          <ImagePicker label="Main photo" value={form.heroImage} onChange={(v) => update({ heroImage: v })} />
-          <ImagePicker label="Menu picture" value={form.menuImage} onChange={(v) => update({ menuImage: v })} />
+          <ImagePicker
+            label="Main photo"
+            hint="At the top of the evening’s page, and on its card on the home page."
+            noneLabel="The usual photo"
+            value={form.heroImage}
+            onChange={(v) => update({ heroImage: v })}
+          />
+          <ImagePicker
+            label="Second photo"
+            hint="Further down the evening’s page, beside the price and collection times."
+            noneLabel="The usual photo"
+            value={form.secondImage}
+            onChange={(v) => update({ secondImage: v })}
+          />
+          <PrintedMenuPicker
+            label="Printed menu (English)"
+            hint="Linked as “View the printed menu” on the English site. A PDF or a photo."
+            language="en"
+            value={form.menuImage}
+            onChange={(v) => update({ menuImage: v })}
+          />
+          <PrintedMenuPicker
+            label="Printed menu (French)"
+            hint="Linked on the French site. If only one menu is given, both sites use it."
+            language="fr"
+            value={form.menuImageFr}
+            onChange={(v) => update({ menuImageFr: v })}
+          />
         </div>
         {isNew ? (
           <label className="flex cursor-pointer gap-3 text-sm leading-relaxed text-charcoal">
@@ -835,148 +859,6 @@ function SmallButton({
   )
 }
 
-const PHOTOS_URL = '/api/manager/photos'
-const PHOTO_MAX_SIDE = 2000
-
-function photoLabel(p: UploadedPhoto) {
-  const when = new Date(p.uploadedAt).toLocaleString('en-GB', {
-    timeZone: 'Europe/Paris', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
-  })
-  return `Uploaded ${when}`
-}
-
-/** Choose a photo: one that came with the site, or one of Eleanor's uploads (issue #20). */
-function ImagePicker({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
-  const photos = useSWR<{ configured?: boolean; photos?: UploadedPhoto[]; error?: string }>(PHOTOS_URL, fetcher)
-  const [busy, setBusy] = useState<'' | 'upload' | 'delete'>('')
-  const [message, setMessage] = useState('')
-  const uploads = photos.data?.photos ?? []
-  const configured = photos.data?.configured !== false
-  const uploaded = isUploadedPhoto(value)
-  // A saved upload that has since been deleted still shows, so the choice isn’t silently lost.
-  const missing = uploaded && photos.data && !uploads.some((p) => p.url === value)
-
-  async function upload(file: File) {
-    setBusy('upload')
-    setMessage('')
-    try {
-      const jpeg = await shrinkPhoto(file)
-      const res = await fetch(PHOTOS_URL, { method: 'POST', headers: { 'content-type': 'image/jpeg', ...pinHeaders() }, body: jpeg })
-      const body = (await res.json().catch(() => ({}))) as { photo?: UploadedPhoto; error?: string }
-      if (!res.ok || !body.photo) throw new Error(body.error || 'The photo couldn’t be uploaded. Please try again.')
-      await photos.mutate()
-      onChange(body.photo.url)
-    } catch (err) {
-      setMessage(err instanceof Error ? err.message : 'The photo couldn’t be uploaded.')
-    } finally {
-      setBusy('')
-    }
-  }
-
-  async function remove() {
-    if (!window.confirm('Delete this photo for good? It will no longer be available to choose.')) return
-    setBusy('delete')
-    setMessage('')
-    try {
-      await send(`${PHOTOS_URL}?url=${encodeURIComponent(value)}`, 'DELETE')
-      await photos.mutate()
-      onChange('')
-    } catch (err) {
-      setMessage(err instanceof Error ? err.message : 'The photo couldn’t be deleted.')
-    } finally {
-      setBusy('')
-    }
-  }
-
-  return (
-    <Field label={label}>
-      <select className={inputClass} value={value} onChange={(e) => onChange(e.target.value)}>
-        <option value="">None</option>
-        {uploads.length || missing ? (
-          <optgroup label="Your photos">
-            {uploads.map((p) => (
-              <option key={p.url} value={p.url}>
-                {photoLabel(p)}
-              </option>
-            ))}
-            {missing ? <option value={value}>Deleted photo</option> : null}
-          </optgroup>
-        ) : null}
-        <optgroup label="Photos on the site">
-          {IMAGES.map((i) => (
-            <option key={i.path} value={i.path}>
-              {i.label}
-            </option>
-          ))}
-        </optgroup>
-      </select>
-      {value ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={value} alt="" className="mt-2 h-28 w-full border border-border object-cover" />
-      ) : null}
-      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-        {configured ? (
-          <label className={cn('cursor-pointer underline underline-offset-4 hover:text-gold-deep', busy && 'pointer-events-none opacity-50')}>
-            {busy === 'upload' ? 'Uploading…' : 'Upload a photo'}
-            <input
-              type="file"
-              accept="image/*"
-              className="sr-only"
-              disabled={Boolean(busy)}
-              onChange={(e) => {
-                const file = e.target.files?.[0]
-                e.target.value = ''
-                if (file) void upload(file)
-              }}
-            />
-          </label>
-        ) : (
-          <span className="text-stone">Photo uploads aren’t set up yet.</span>
-        )}
-        {uploaded && !missing ? (
-          <button
-            type="button"
-            className="text-stone underline underline-offset-4 hover:text-gold-deep disabled:opacity-50"
-            disabled={Boolean(busy)}
-            onClick={remove}
-          >
-            {busy === 'delete' ? 'Deleting…' : 'Delete this photo'}
-          </button>
-        ) : null}
-      </div>
-      {message || photos.data?.error ? (
-        <p className="mt-1 text-sm text-destructive">{message || photos.data?.error}</p>
-      ) : null}
-    </Field>
-  )
-}
-
-/** Shrinks a photo in the browser to a web-sized JPEG (long side at most 2000 px). */
-async function shrinkPhoto(file: File): Promise<Blob> {
-  const url = URL.createObjectURL(file)
-  try {
-    const img = new Image()
-    img.src = url
-    await img.decode().catch(() => {
-      throw new Error('That file couldn’t be opened as a photo. Please choose a JPEG or PNG photo.')
-    })
-    const scale = Math.min(1, PHOTO_MAX_SIDE / Math.max(img.naturalWidth, img.naturalHeight))
-    const canvas = document.createElement('canvas')
-    canvas.width = Math.round(img.naturalWidth * scale)
-    canvas.height = Math.round(img.naturalHeight * scale)
-    const ctx = canvas.getContext('2d')
-    if (!ctx) throw new Error('This browser couldn’t prepare the photo. Please try another browser.')
-    ctx.fillStyle = '#ffffff'
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-    return await new Promise<Blob>((resolve, reject) =>
-      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('The photo couldn’t be prepared.'))), 'image/jpeg', 0.85),
-    )
-  } finally {
-    URL.revokeObjectURL(url)
-  }
-}
-
 function StatusLabel({ status }: { status: ManagerStatus }) {
   return <span className={status === 'open' ? 'text-gold-deep' : undefined}>{STATUS_LABEL[status]}</span>
 }
@@ -1005,7 +887,7 @@ function blankCourse(): EditableCourse {
 
 function blankEvent(): EditableEvent {
   return {
-    id: null, slug: '', title: '', theme: '', date: '', intro: '', heroImage: '', menuImage: '',
+    id: null, slug: '', title: '', theme: '', date: '', intro: '', heroImage: '', secondImage: '', menuImage: '', menuImageFr: '',
     titleFr: '', themeFr: '', introFr: '',
     priceCents: 0, depositCents: 0, capacity: 40, cutoffAt: '', status: 'draft', isTest: false,
     courses: [], collectionPoints: [],
@@ -1059,6 +941,12 @@ function eventFromCard(
   if (base?.isTest && !defaults.length)
     notes.push('That was a test evening: make sure the collection points have real addresses before opening for orders.')
   notes.push('Please check every dish, (v) mark and description line against the card.')
+  if (card.menuImage || card.menuImageFr)
+    notes.push(
+      card.menuImage && card.menuImageFr
+        ? 'Your two cards are set as the printed menus (English and French).'
+        : 'Your card is set as the printed menu for both the English and French sites.',
+    )
   return {
     start: {
       ...from,
@@ -1072,8 +960,9 @@ function eventFromCard(
       date: card.date,
       cutoffAt: card.date ? defaultCutoff(card.date) : '',
       priceCents: card.priceCents ?? from.priceCents,
-      // The old evening's printed menu would be wrong for this one.
-      menuImage: '',
+      // The card(s) just read become the printed menus; the old evening's would be wrong for this one.
+      menuImage: card.menuImage ?? '',
+      menuImageFr: card.menuImageFr ?? '',
       courses: card.courses,
     },
     notes,

@@ -14,7 +14,7 @@ import { SiteFooter } from '@/components/site/site-footer'
 import { MAX_DINERS, abandonCardOrder, cardOrderState, transferDepositDue } from '@/lib/orders'
 import { cardPaymentsReady, checkCardPayment } from '@/lib/stripe'
 import { emailCardOrderPaid } from '@/lib/emails'
-import { DEFAULT_HOLD_DAYS, getBusinessSettings } from '@/lib/settings'
+import { DEFAULT_HOLD_DAYS, getBusinessSettings, getHomeImage } from '@/lib/settings'
 import { LegalPage } from '@/components/legal-page'
 import { LEGAL_PATHS } from '@/lib/site'
 import type { LegalPageKey } from '@/lib/content'
@@ -26,8 +26,12 @@ const getEvent = cache((slug: string, locale: Locale) => loadEvent(slug, locale)
 
 /** The Dine at Home page. `path` is "/" or "/dine-at-home" (both show the same page). */
 export async function renderDineAtHome(locale: Locale, path: string) {
-  const { upcoming, past } = await listEvents(locale)
-  return <DineAtHomePage locale={locale} path={path} upcoming={upcoming} past={past} />
+  const [{ upcoming, past }, homeImage] = await Promise.all([
+    listEvents(locale),
+    // The usual photo if the setting can't be read: the page must still show.
+    getHomeImage().catch(() => ''),
+  ])
+  return <DineAtHomePage locale={locale} path={path} upcoming={upcoming} past={past} homeImage={homeImage} />
 }
 
 export function dineAtHomeMetadata(locale: Locale): Metadata {

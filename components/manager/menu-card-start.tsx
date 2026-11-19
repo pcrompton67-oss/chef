@@ -99,7 +99,7 @@ export function MenuCardStart({
         <h2 className="text-3xl text-charcoal">New evening from a menu card</h2>
         <p className="text-sm leading-relaxed text-stone">
           Give a photo or PDF of your printed menu. It’s read for you and opens as a new evening for you to check.
-          Nothing is saved until you press Save, and it starts as a hidden draft. The cards themselves aren’t kept.
+          Nothing is saved until you press Save, and it starts as a hidden draft. The cards are kept as the evening’s printed menus.
         </p>
       </div>
 

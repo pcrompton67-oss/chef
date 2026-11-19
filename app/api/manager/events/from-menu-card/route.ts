@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { checkRequestPin } from '@/lib/pins'
 import { MENU_CARD_MEDIA_TYPES, readMenuCard, type MenuCardFile } from '@/lib/menu-card'
+import { photosConfigured } from '@/lib/photos'
+import { uploadPrintedMenu } from '@/lib/printed-menus'
 
 // Reading a card usually takes 10–30 seconds (two cards a little longer); allow up to two minutes.
 export const maxDuration = 120
@@ -39,7 +41,20 @@ export async function POST(req: NextRequest) {
   }
 
   const result = await readMenuCard(cards)
-  return result.ok
-    ? NextResponse.json({ draft: result.draft })
-    : NextResponse.json({ error: result.error }, { status: result.status })
+  if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status })
+
+  // Keep the cards as the evening's printed menus (issue #37), so Eleanor
+  // doesn't upload them twice. A card that can't be stored just isn't kept.
+  const draft = { ...result.draft }
+  if (photosConfigured()) {
+    const stored = await Promise.all(
+      cards.map(async (c) => ({ c, up: await uploadPrintedMenu(new Uint8Array(Buffer.from(c.data, 'base64')), c.language) })),
+    )
+    for (const { c, up } of stored) {
+      if (!up.ok) continue
+      if (c.language === 'fr') draft.menuImageFr = up.url
+      else draft.menuImage = up.url
+    }
+  }
+  return NextResponse.json({ draft })
 }

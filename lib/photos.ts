@@ -6,6 +6,7 @@
  */
 import { del, list, put } from '@vercel/blob'
 import { query } from '@/lib/db'
+import { getHomeImage } from '@/lib/settings'
 import { PHOTO_FOLDER, isUploadedPhoto, type UploadedPhoto } from '@/lib/event-editing'
 
 const MAX_BYTES = 4 * 1024 * 1024
@@ -62,9 +63,11 @@ export async function uploadPhoto(bytes: ArrayBuffer): Promise<PhotoResult> {
 export async function deletePhoto(url: string): Promise<{ ok: true } | { ok: false; error: string }> {
   if (!isUploadedPhoto(url)) return { ok: false, error: 'That photo wasn’t found.' }
   const users = await query<{ title: string }>(
-    `SELECT title FROM events WHERE hero_image = $1 OR menu_image = $1 ORDER BY event_date`,
+    `SELECT title FROM events
+      WHERE $1 IN (hero_image, menu_image, menu_image_fr, second_image) ORDER BY event_date`,
     [url],
   )
+  if ((await getHomeImage()) === url) users.push({ title: 'the home page (Settings)' })
   if (users.length)
     return {
       ok: false,

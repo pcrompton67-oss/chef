@@ -1,6 +1,7 @@
 import { query, transaction } from '@/lib/db'
 import {
   IMAGES,
+  isUploadedMenu,
   isUploadedPhoto,
   STATUSES,
   type EditableCourse,
@@ -58,7 +59,8 @@ export async function getManagerEvent(
             COALESCE(intro, '') AS intro, COALESCE(title_fr, '') AS "titleFr",
             COALESCE(theme_fr, '') AS "themeFr", COALESCE(intro_fr, '') AS "introFr",
             COALESCE(hero_image, '') AS "heroImage",
-            COALESCE(menu_image, '') AS "menuImage", price_cents AS "priceCents",
+            COALESCE(menu_image, '') AS "menuImage", COALESCE(menu_image_fr, '') AS "menuImageFr",
+            COALESCE(second_image, '') AS "secondImage", price_cents AS "priceCents",
             deposit_cents AS "depositCents", capacity,
             to_char(cutoff_at AT TIME ZONE 'Europe/Paris', 'YYYY-MM-DD"T"HH24:MI') AS "cutoffAt",
             status, is_test AS "isTest"
@@ -134,7 +136,9 @@ export function parseEvent(body: unknown): { event: EditableEvent } | { error: s
     themeFr: text(b.themeFr),
     introFr: text(b.introFr),
     heroImage: text(b.heroImage),
+    secondImage: text(b.secondImage),
     menuImage: text(b.menuImage),
+    menuImageFr: text(b.menuImageFr),
     priceCents: int(b.priceCents),
     depositCents: int(b.depositCents),
     capacity: int(b.capacity),
@@ -176,8 +180,12 @@ export function parseEvent(body: unknown): { event: EditableEvent } | { error: s
   if (!(e.depositCents >= 0)) return { error: 'Please enter the deposit per person (0 if none).' }
   if (e.depositCents > e.priceCents) return { error: 'The deposit can’t be more than the price.' }
   if (!(e.capacity > 0)) return { error: 'Please enter how many diners you can cater for.' }
-  for (const img of [e.heroImage, e.menuImage]) {
-    if (img && !IMAGES.some((i) => i.path === img) && !isUploadedPhoto(img)) return { error: 'Please choose a photo from the list.' }
+  const known = (img: string) => IMAGES.some((i) => i.path === img) || isUploadedPhoto(img)
+  for (const img of [e.heroImage, e.secondImage]) {
+    if (img && !known(img)) return { error: 'Please choose a photo from the list.' }
+  }
+  for (const m of [e.menuImage, e.menuImageFr]) {
+    if (m && !known(m) && !isUploadedMenu(m)) return { error: 'Please upload the printed menu again.' }
   }
 
   for (const [i, c] of e.courses.entries()) {
@@ -242,6 +250,7 @@ export async function saveEvent(e: EditableEvent): Promise<SaveResult> {
     e.slug, e.title, e.theme || null, e.date, e.intro || null, e.heroImage || null,
     e.menuImage || null, e.priceCents, e.depositCents, e.capacity, e.cutoffAt, e.status,
     e.titleFr || null, e.themeFr || null, e.introFr || null,
+    e.menuImageFr || null, e.secondImage || null,
   ]
   const cutoff = `($11::timestamp AT TIME ZONE 'Europe/Paris')`
   const statements: { text: string; params?: unknown[] }[] = [
@@ -250,15 +259,16 @@ export async function saveEvent(e: EditableEvent): Promise<SaveResult> {
           text: `UPDATE events SET slug = $1, title = $2, theme = $3, event_date = $4, intro = $5,
                    hero_image = $6, menu_image = $7, price_cents = $8, deposit_cents = $9,
                    capacity = $10, cutoff_at = ${cutoff}, status = $12,
-                   title_fr = $13, theme_fr = $14, intro_fr = $15, updated_at = now()
-                 WHERE id = $16`,
+                   title_fr = $13, theme_fr = $14, intro_fr = $15,
+                   menu_image_fr = $16, second_image = $17, updated_at = now()
+                 WHERE id = $18`,
           params: [...fields, e.id],
         }
       : {
           text: `INSERT INTO events (slug, title, theme, event_date, intro, hero_image, menu_image,
                    price_cents, deposit_cents, capacity, cutoff_at, status,
-                   title_fr, theme_fr, intro_fr, is_test)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, ${cutoff}, $12, $13, $14, $15, $16)`,
+                   title_fr, theme_fr, intro_fr, menu_image_fr, second_image, is_test)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, ${cutoff}, $12, $13, $14, $15, $16, $17, $18)`,
           params: [...fields, isTest],
         },
   ]

@@ -79,6 +79,9 @@ Ignore the logo, "Dine at Home" heading and decorative lines. If anything is unr
 
 /** What the console receives: the parts of an evening the card can fill. */
 export type MenuCardDraft = {
+  /** The cards themselves, kept as the evening's printed menus (issue #37); empty if not stored. */
+  menuImage?: string
+  menuImageFr?: string
   title: string
   intro: string
   titleFr: string

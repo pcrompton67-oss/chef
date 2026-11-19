@@ -15,6 +15,23 @@ export function isUploadedPhoto(url: string): boolean {
   return /^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\/event-photos\/[\w.-]+$/i.test(url)
 }
 
+/**
+ * Printed menus (issue #37): a PDF or a photo per language, kept in Vercel
+ * Blob under printed-menus/ (server side in lib/printed-menus.ts). Not listed
+ * with the photos; an evening stores the address in menu_image / menu_image_fr.
+ */
+export const MENU_FOLDER = 'printed-menus/'
+
+/** True for the web address of a printed menu uploaded from the console. */
+export function isUploadedMenu(url: string): boolean {
+  return /^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\/printed-menus\/[\w.-]+$/i.test(url)
+}
+
+/** True when a printed menu is a PDF (shown as a link rather than a picture). */
+export function isPdf(url: string): boolean {
+  return /\.pdf$/i.test(url)
+}
+
 /** Photos that came with the site (files in public/). */
 export const IMAGES = [
   { path: '/CEJ_Banner.jpg', label: 'Banner' },
@@ -71,7 +88,11 @@ export type EditableEvent = {
   themeFr: string
   introFr: string
   heroImage: string
+  /** The photo further down the evening's page (issue #37); empty = the usual one. */
+  secondImage: string
+  /** Printed menu (photo or PDF) for the English site, and for the French site (issue #37). */
   menuImage: string
+  menuImageFr: string
   priceCents: number
   depositCents: number
   capacity: number
