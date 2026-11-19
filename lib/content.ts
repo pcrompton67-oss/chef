@@ -77,7 +77,7 @@ const en = {
     steps: [
       {
         title: 'Choose',
-        text: 'Reserve your places and choose a main course for each guest.',
+        text: 'Reserve your places and, where the menu offers a choice, choose a main course for each guest.',
       },
       {
         title: 'Collect',
@@ -656,7 +656,7 @@ const fr: Content = {
     steps: [
       {
         title: 'Choisir',
-        text: 'Réservez vos places et choisissez un plat principal pour chaque convive.',
+        text: 'Réservez vos places et, lorsque le menu propose un choix, choisissez un plat principal pour chaque convive.',
       },
       {
         title: 'Récupérer',
