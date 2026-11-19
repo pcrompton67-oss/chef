@@ -246,7 +246,11 @@ export function EmailWordingEditor({ bank }: { bank: BankDetails }) {
           ) : null}
         </div>
       ) : (
-        <p className="text-sm text-stone">This email is only for you, so its wording isn’t changed here.</p>
+        <p className="text-sm text-stone">
+          {kind === 'changed'
+            ? 'This email lists only what changed, so it has no opening or closing of its own. It ends with your sign-off.'
+            : 'This email is only for you, so its wording isn’t changed here.'}
+        </p>
       )}
 
       <div className="flex flex-wrap gap-2">

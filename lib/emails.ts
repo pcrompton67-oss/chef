@@ -1,6 +1,7 @@
 import { query } from '@/lib/db'
 import {
   renderEmail,
+  renderOrderChanged,
   renderPreview,
   renderSignupConfirm,
   renderWeeklyList,
@@ -108,22 +109,27 @@ export function sendingEnabled(): boolean {
 /**
  * One order with everything its emails need. The evening's title and menu are
  * in the customer's language (French wording where Eleanor entered it, issue
- * #12), unless `english` is set (Eleanor's own copy).
+ * #12), unless `english` is set (Eleanor's own copy). `as` reads it in that
+ * language instead (an order whose language is being changed, issue #40).
  */
+type OrderForEmail = EmailOrder & { eventId: string; status: string; refundDueCents: number }
+
 async function loadOrder(
   orderId: string,
   english = false,
-): Promise<(EmailOrder & { eventId: string; status: string }) | null> {
+  as?: Locale,
+): Promise<OrderForEmail | null> {
   if (!/^\d+$/.test(orderId)) return null
-  // $2 = false for Eleanor's English copy; otherwise French orders get the French wording.
+  // $2 = the language to read it in: English for Eleanor's copy, else the order's own (or `as`).
   const fr = (en: string, frCol: string) =>
-    `CASE WHEN $2::boolean AND o.language = 'fr' AND NULLIF(btrim(${frCol}), '') IS NOT NULL THEN ${frCol} ELSE ${en} END`
-  const [row] = await query<EmailOrder & { eventId: string; status: string; eventTitle: string; eventDate: string }>(
+    `CASE WHEN COALESCE($2::text, o.language) = 'fr' AND NULLIF(btrim(${frCol}), '') IS NOT NULL THEN ${frCol} ELSE ${en} END`
+  const [row] = await query<OrderForEmail & { eventTitle: string; eventDate: string }>(
     `SELECT o.id::text, o.name, o.email, o.mobile, o.language, o.diners,
             COALESCE(o.allergies, '') AS allergies, COALESCE(o.notes, '') AS notes, o.source,
             o.payment_method AS "paymentMethod", o.status,
             o.total_cents AS "totalCents", o.deposit_cents AS "depositCents", o.balance_cents AS "balanceCents",
             o.deposit_paid_at IS NOT NULL AS "depositPaid",
+            CASE WHEN o.refund_status = 'requested' THEN o.refund_cents ELSE 0 END AS "refundDueCents",
             e.id::text AS "eventId", ${fr('e.title', 'e.title_fr')} AS "eventTitle", e.event_date::text AS "eventDate",
             p.place, to_char(p.collect_time, 'HH24:MI') AS time, p.address,
             CASE WHEN cu.marketing_consent AND cu.unsubscribed_at IS NULL
@@ -144,7 +150,7 @@ async function loadOrder(
        JOIN collection_points p ON p.id = o.collection_point_id
        LEFT JOIN customers cu ON cu.id = o.customer_id
       WHERE o.id = $1`,
-    [orderId, !english],
+    [orderId, english ? 'en' : (as ?? null)],
   )
   if (!row) return null
   const { eventTitle, eventDate, ...rest } = row
@@ -302,6 +308,55 @@ export function emailBookingConfirmed(orderId: string) {
     const o = await loadOrder(orderId)
     if (!o || !o.email || o.status !== 'confirmed') return
     await send('confirmed', o.email, o, await getEmailSettings())
+  })
+}
+
+/**
+ * Changing an order (issue #40): the order as it is before the change, so the
+ * email can say what changed. Null if it can't be read (then no email is sent).
+ */
+export async function orderBeforeChange(orderId: string, language: unknown): Promise<OrderForEmail | null> {
+  try {
+    // In the language the email will be in, so dish names compare like with like.
+    return await loadOrder(orderId, false, language === 'fr' ? 'fr' : 'en')
+  } catch (err) {
+    console.error('Emails (order before change) failed', err)
+    return null
+  }
+}
+
+/**
+ * Eleanor changed an order with "Email the customer" ticked: "Your order has
+ * been updated", listing only what changed (no address, no copy to Eleanor).
+ * Goes to the order's email as it is now; nothing if it has none or nothing
+ * the customer sees has changed.
+ */
+export function emailOrderChanged(orderId: string, before: OrderForEmail) {
+  return safely('order changed', async () => {
+    const after = await loadOrder(orderId)
+    if (!after || !after.email) return
+    const email = renderOrderChanged(
+      before,
+      after,
+      Math.max(0, after.refundDueCents - before.refundDueCents),
+      await wordingOrDefault(),
+    )
+    if (!email) return
+    await deliver({
+      kind: 'changed',
+      to: after.email,
+      email,
+      orderId: after.id,
+      eventId: after.eventId,
+      // Each change is its own email; the time keeps two different changes apart.
+      idempotencyKey: `changed-${after.id}-${Date.now()}`,
+      headers: after.unsubscribeToken
+        ? {
+            'List-Unsubscribe': `<${SITE_URL}/api/unsubscribe?t=${after.unsubscribeToken}>`,
+            'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+          }
+        : undefined,
+    })
   })
 }
 

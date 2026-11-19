@@ -1,5 +1,5 @@
 import { NextResponse, after, type NextRequest } from 'next/server'
-import { emailBookingConfirmed } from '@/lib/emails'
+import { emailBookingConfirmed, emailOrderChanged, orderBeforeChange } from '@/lib/emails'
 import { checkRequestPin } from '@/lib/pins'
 import { applyOrderAction, changeOrder } from '@/lib/manager-orders'
 import type { OrderAction } from '@/lib/order-editing'
@@ -21,9 +21,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   return NextResponse.json(result, { status: result.ok ? 200 : 400 })
 }
 
-/** Console: change an order (diners, dishes, collection point, contact …; issue #21). No email is sent. */
+/**
+ * Console: change an order (diners, dishes, collection point, contact …; issue #21).
+ * With `notify` ticked, the customer is emailed what changed (issue #40).
+ */
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!checkRequestPin(req, 'manager')) return NextResponse.json({ error: 'PIN required' }, { status: 401 })
-  const result = await changeOrder((await params).id, await req.json().catch(() => null))
+  const id = (await params).id
+  const body = (await req.json().catch(() => null)) as Record<string, unknown> | null
+  const before = body?.notify === true ? await orderBeforeChange(id, body.language) : null
+  const result = await changeOrder(id, body)
+  if (result.ok && before) after(() => emailOrderChanged(id, before))
   return NextResponse.json(result, { status: result.ok ? 200 : result.overCapacity ? 409 : 400 })
 }

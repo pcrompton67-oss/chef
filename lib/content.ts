@@ -298,6 +298,24 @@ const en = {
         `Just a reminder that your ${title} meal is ready to collect tomorrow, ${date}.`,
       outro: 'I look forward to seeing you.',
     },
+    // Sent when Eleanor changes an order and leaves "Email the customer" ticked (issue #40).
+    // Lists only what changed; never the address.
+    changed: {
+      subject: (title: string) => `Your order has been updated · ${title}`,
+      title: 'Your order has been updated',
+      intro: (title: string, date: string) =>
+        `Your order for ${title} on ${date} has been updated. Here is what has changed:`,
+      changesTitle: 'What has changed',
+      amountsTitle: 'Your amounts now',
+      name: 'Name',
+      mobile: 'Mobile',
+      email: 'Email',
+      depositPaid: (amount: string) => `${amount} (paid)`,
+      depositToPay: (amount: string) => `${amount} (still to pay)`,
+      transferReference: 'Transfer reference',
+      refund: 'Refund on its way',
+      refundNote: 'I will refund the difference to you shortly.',
+    },
   },
   confirmSignup: {
     metaTitle: 'Confirm your subscription',
@@ -855,6 +873,22 @@ const fr: Content = {
       intro: (title: string, date: string) =>
         `Petit rappel : votre repas ${title} est à retirer demain, ${date.charAt(0).toLowerCase() + date.slice(1)}.`,
       outro: 'Au plaisir de vous voir.',
+    },
+    changed: {
+      subject: (title: string) => `Votre commande a été modifiée · ${title}`,
+      title: 'Votre commande a été modifiée',
+      intro: (title: string, date: string) =>
+        `Votre commande pour ${title} du ${date.charAt(0).toLowerCase() + date.slice(1)} a été modifiée. Voici ce qui a changé :`,
+      changesTitle: 'Ce qui a changé',
+      amountsTitle: 'Vos montants',
+      name: 'Nom',
+      mobile: 'Portable',
+      email: 'E-mail',
+      depositPaid: (amount: string) => `${amount} (réglé)`,
+      depositToPay: (amount: string) => `${amount} (à régler)`,
+      transferReference: 'Référence du virement',
+      refund: 'Remboursement à venir',
+      refundNote: 'Je vous rembourse la différence très prochainement.',
     },
   },
   confirmSignup: {

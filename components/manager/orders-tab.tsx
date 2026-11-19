@@ -494,6 +494,8 @@ function AddOrder({
     reference: '',
     marketing: false,
     overbook: false,
+    // Changing an order: email the customer what changed (issue #40).
+    notify: true,
   })
   const [choices, setChoices] = useState<Record<string, number>>(() =>
     Object.fromEntries((order?.lines ?? []).map((l) => [l.optionId, l.quantity])),
@@ -538,7 +540,7 @@ function AddOrder({
         <h2 className="text-3xl text-charcoal">{order ? `Change ${order.name}’s order` : 'Add an order'}</h2>
         <p className="text-sm text-stone">
           {order
-            ? `${Math.max(placesLeft, 0)} place${placesLeft === 1 ? '' : 's'} available for this order (including its own ${order.diners}). The customer isn’t emailed about the change: please let them know yourself.`
+            ? `${Math.max(placesLeft, 0)} place${placesLeft === 1 ? '' : 's'} available for this order (including its own ${order.diners}).`
             : placesLeft > 0
               ? `${placesLeft} place${placesLeft === 1 ? '' : 's'} left.`
               : 'No places left.'}
@@ -668,6 +670,24 @@ function AddOrder({
           ) : null}
         </div>
       )}
+
+      {order ? (
+        f.email.trim() ? (
+          <label className="flex cursor-pointer gap-3 text-sm text-charcoal">
+            <input type="checkbox" className="tick mt-0.5" checked={f.notify} onChange={(e) => set({ notify: e.target.checked })} />
+            <span>
+              Email the customer about this change
+              <span className="block text-stone">
+                Lists only what changed (and the new amounts), never the address. Nothing is sent if only your notes changed.
+              </span>
+            </span>
+          </label>
+        ) : (
+          <p className="text-sm text-stone">
+            No email address: the customer won’t be emailed about this change, so let them know yourself.
+          </p>
+        )
+      ) : null}
 
       <div className="flex flex-wrap items-center gap-4">
         <button

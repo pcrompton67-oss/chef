@@ -17,13 +17,14 @@ import { customText, fillPlaceholders, paragraphs, type EmailWording, type Wordi
 
 /** Emails about one order. */
 export type OrderEmailKind = 'received' | 'confirmed' | 'reminder' | 'owner'
-/** All emails: order emails, the sign-up confirmation, and Eleanor's weekly list (issue #10). */
-export type EmailKind = OrderEmailKind | 'signup' | 'weekly'
+/** All emails: order emails, the order-changed email (issue #40), the sign-up confirmation, and Eleanor's weekly list (issue #10). */
+export type EmailKind = OrderEmailKind | 'changed' | 'signup' | 'weekly'
 
 export const EMAIL_KINDS: { id: EmailKind; label: string; when: string }[] = [
   { id: 'received', label: 'Request received', when: 'Sent to the customer as soon as they order.' },
   { id: 'confirmed', label: 'Booking confirmed', when: 'Sent when you press “Deposit received”. The only email (with the reminder) that gives the address.' },
   { id: 'reminder', label: 'Reminder', when: 'Sent at 18:00 the day before, to confirmed orders only.' },
+  { id: 'changed', label: 'Order changed', when: 'Sent when you change an order with “Email the customer about this change” ticked. Lists only what changed, never the address.' },
   { id: 'owner', label: 'Your copy', when: 'Sent to you for every new website order. Always in English.' },
   { id: 'signup', label: 'Confirm subscription', when: 'Sent when someone uses a sign-up box. They join the mailing list only once they click the button.' },
   { id: 'weekly', label: 'Weekly mailing list', when: 'Sent to you every Monday at 8:00, with the full list attached as a spreadsheet. Always in English.' },
@@ -228,7 +229,103 @@ export function sampleWeeklyList(): WeeklyListEmail {
 export function renderPreview(kind: EmailKind, locale: Locale, bank: BankDetails, w?: EmailWording): RenderedEmail {
   if (kind === 'signup') return renderSignupConfirm(locale, '0'.repeat(32), w)
   if (kind === 'weekly') return renderWeeklyList(sampleWeeklyList())
+  if (kind === 'changed') {
+    const before = sampleOrder(locale)
+    const after = sampleOrder(locale)
+    // Made-up change: one more diner choosing the vegetarian main, collected at another place.
+    after.diners = 5
+    after.courses = after.courses.map((c) =>
+      c.dishes.some((d) => d.quantity !== null)
+        ? { ...c, dishes: c.dishes.map((d, i) => (i === 1 && d.quantity !== null ? { ...d, quantity: d.quantity + 1 } : d)) }
+        : c,
+    )
+    after.place = 'Ruffec'
+    after.time = '18:30'
+    after.totalCents = 20000
+    after.depositCents = 10000
+    after.balanceCents = 10000
+    return renderOrderChanged(before, after, 0, w)!
+  }
   return renderEmail(kind, sampleOrder(locale), bank, w)
+}
+
+/**
+ * "Your order has been updated" (issue #40): only what changed, as before → after,
+ * and the amounts if they changed. Never the address. `refundCents` is a refund
+ * newly owed because of this change (0 if none). Returns null when nothing the
+ * customer sees has changed (e.g. only Eleanor's notes).
+ */
+export function renderOrderChanged(
+  before: EmailOrder,
+  after: EmailOrder,
+  refundCents: number,
+  w?: EmailWording,
+): RenderedEmail | null {
+  const loc = after.language
+  const c = content[loc].email
+  const ch = c.changed
+  const money = (cents: number) => formatMoney(cents, loc)
+  const arrow = (a: string, b: string) => `${a} → ${b}`
+
+  const rows: [string, string][] = []
+  const add = (label: string, a: string, b: string) => {
+    if (a.trim() !== b.trim()) rows.push([label, arrow(a.trim() || '—', b.trim() || '—')])
+  }
+  add(c.diners, String(before.diners), String(after.diners))
+  // Dishes: only the courses with a choice (fixed courses follow the diners).
+  const dishesOf = (o: EmailOrder, i: number) =>
+    (o.courses[i]?.dishes ?? [])
+      .filter((d) => d.quantity !== null && d.quantity > 0)
+      .map((d) => `${d.name} × ${d.quantity}`)
+      .join(', ')
+  after.courses.forEach((course, i) => {
+    if (course.dishes.some((d) => d.quantity !== null) || before.courses[i]?.dishes.some((d) => d.quantity !== null))
+      add(course.name, dishesOf(before, i), dishesOf(after, i))
+  })
+  add(
+    c.collection,
+    c.collectionAt(before.place, formatTime(before.time, loc)),
+    c.collectionAt(after.place, formatTime(after.time, loc)),
+  )
+  add(c.allergies, before.allergies.trim() || c.noAllergies, after.allergies.trim() || c.noAllergies)
+  add(ch.name, before.name, after.name)
+  add(ch.mobile, before.mobile, after.mobile)
+  add(ch.email, before.email, after.email)
+
+  const moneyChanged =
+    before.totalCents !== after.totalCents ||
+    before.depositCents !== after.depositCents ||
+    before.balanceCents !== after.balanceCents
+  if (!rows.length && !moneyChanged && refundCents <= 0) return null
+
+  const date = formatDate(after.event.date, loc)
+  const subject = ch.subject(after.event.title)
+  const b = new Builder()
+  b.title(ch.title)
+  b.para(c.greeting(after.name))
+  b.para(ch.intro(after.event.title, date))
+  if (rows.length) {
+    b.heading(ch.changesTitle)
+    b.table(rows)
+  }
+  if (moneyChanged || refundCents > 0) {
+    b.heading(ch.amountsTitle)
+    const m: [string, string][] = [[c.total, money(after.totalCents)]]
+    if (after.depositCents > 0)
+      m.push([c.deposit, after.depositPaid ? ch.depositPaid(money(after.depositCents)) : ch.depositToPay(money(after.depositCents))])
+    if (after.depositCents > 0 && !after.depositPaid && after.paymentMethod === 'bank_transfer')
+      m.push([ch.transferReference, transferReference(after.id)])
+    m.push([c.balance, money(after.balanceCents)])
+    if (refundCents > 0) m.push([ch.refund, money(refundCents)])
+    b.table(m)
+    if (refundCents > 0) b.para(ch.refundNote)
+  }
+  b.para(c.replyNote, true)
+  b.signOff(signOffLine(w, loc), signatureName(w, loc))
+  const unsubscribe = after.unsubscribeToken
+    ? { label: c.unsubscribe, url: SITE_URL + unsubscribePath(after.unsubscribeToken, loc) }
+    : undefined
+  return { subject, ...b.finish(c.footer, subject, unsubscribe) }
 }
 
 /** The sign-off line and name: Eleanor's own if she has written them (issue #36). */
