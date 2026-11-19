@@ -5,6 +5,7 @@ import {
   renderPreview,
   renderSignupConfirm,
   renderWeeklyList,
+  renderWeeklySummary,
   type BankDetails,
   type EmailKind,
   type EmailOrder,
@@ -14,6 +15,7 @@ import {
 import type { Locale } from '@/lib/i18n'
 import { normalizeWording, WORDING_KINDS, type EmailWording, type WordingKind } from '@/lib/email-wording'
 import { mailingListCsv, weeklyListSummary } from '@/lib/customers'
+import { liveEvenings } from '@/lib/overview'
 import { getBusinessSettings } from '@/lib/settings'
 import { EMAIL_FROM, EMAIL_REPLY_TO, OWNER_EMAIL, SITE_URL } from '@/lib/site'
 
@@ -26,11 +28,11 @@ import { EMAIL_FROM, EMAIL_REPLY_TO, OWNER_EMAIL, SITE_URL } from '@/lib/site'
 
 /* ---------- Settings (reminders and weekly list on/off; bank details come from Console → Settings) ---------- */
 
-export type EmailSettings = BankDetails & { remindersOn: boolean; weeklyListOn: boolean }
+export type EmailSettings = BankDetails & { remindersOn: boolean; weeklyListOn: boolean; summaryOn: boolean }
 
 export async function getEmailSettings(): Promise<EmailSettings> {
   const [[row], business] = await Promise.all([
-    query<{ value: { remindersOn?: boolean; weeklyListOn?: boolean } }>(`SELECT value FROM settings WHERE key = 'emails'`),
+    query<{ value: { remindersOn?: boolean; weeklyListOn?: boolean; summaryOn?: boolean } }>(`SELECT value FROM settings WHERE key = 'emails'`),
     getBusinessSettings(),
   ])
   const { accountName, iban, bic, holdDays } = business
@@ -41,17 +43,18 @@ export async function getEmailSettings(): Promise<EmailSettings> {
     holdDays,
     remindersOn: row?.value?.remindersOn !== false,
     weeklyListOn: row?.value?.weeklyListOn !== false,
+    summaryOn: row?.value?.summaryOn !== false,
   }
 }
 
-/** Saves the reminders and weekly-list switches (bank details are saved in Console → Settings). */
+/** Saves the reminders, weekly-list and Monday-summary switches (bank details are saved in Console → Settings). */
 export async function saveEmailSettings(raw: unknown): Promise<EmailSettings> {
   const b = (raw ?? {}) as Record<string, unknown>
   await query(
     `INSERT INTO settings (key, value)
-     VALUES ('emails', jsonb_build_object('remindersOn', $1::boolean, 'weeklyListOn', $2::boolean))
+     VALUES ('emails', jsonb_build_object('remindersOn', $1::boolean, 'weeklyListOn', $2::boolean, 'summaryOn', $3::boolean))
      ON CONFLICT (key) DO UPDATE SET value = settings.value || EXCLUDED.value, updated_at = now()`,
-    [b.remindersOn !== false, b.weeklyListOn !== false],
+    [b.remindersOn !== false, b.weeklyListOn !== false, b.summaryOn !== false],
   )
   return getEmailSettings()
 }
@@ -417,6 +420,29 @@ export async function sendWeeklyList(): Promise<{ status: 'sent' | 'failed' | 's
     email: renderWeeklyList(summary),
     idempotencyKey: `weekly-${today}`,
     attachments: [{ filename: `mailing-list-${today}.csv`, content: Buffer.from(csv, 'utf8').toString('base64') }],
+  })
+  return { status }
+}
+
+/**
+ * Eleanor's Monday summary of live evenings (issue #44), sent with the weekly
+ * list but as a separate email. Real evenings only; nothing when none is live.
+ */
+export async function sendWeeklySummary(): Promise<{ status: 'sent' | 'failed' | 'skipped' | 'off' | 'already sent' | 'no live evenings' }> {
+  const settings = await getEmailSettings()
+  if (!settings.summaryOn) return { status: 'off' }
+  const [recent] = await query(
+    `SELECT 1 FROM email_log WHERE kind = 'summary' AND status IN ('sent', 'skipped') AND sent_at > now() - interval '5 days'`,
+  )
+  if (recent) return { status: 'already sent' }
+  const evenings = await liveEvenings({ includeTest: false })
+  if (!evenings.length) return { status: 'no live evenings' }
+  const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' })
+  const status = await deliver({
+    kind: 'summary',
+    to: OWNER_EMAIL,
+    email: renderWeeklySummary(evenings),
+    idempotencyKey: `summary-${today}`,
   })
   return { status }
 }

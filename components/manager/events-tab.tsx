@@ -24,6 +24,8 @@ import type { EventListItem } from '@/lib/manager-events'
 import type { MenuCardDraft } from '@/lib/menu-card'
 import { MenuCardStart, type CardPhotos } from '@/components/manager/menu-card-start'
 import { ImagePicker, PrintedMenuPicker } from '@/components/manager/image-picker'
+import { LiveEvenings } from '@/components/manager/live-evenings'
+import type { EveningSummary } from '@/lib/evening-summary'
 import { cn } from '@/lib/utils'
 
 /* Console → Events: list, create, edit, duplicate, open/close and delete test evenings. */
@@ -54,9 +56,11 @@ type View =
   | { kind: 'edit'; id: string }
   | { kind: 'new'; start: EditableEvent; n: number; source: NewSource; notes?: string[]; pointsFromList?: boolean }
 
-export function EventsTab() {
+export function EventsTab({ onShowOrders }: { onShowOrders: (eventId: string) => void }) {
   const [view, setView] = useState<View>({ kind: 'list' })
   const list = useSWR<{ events?: EventListItem[]; error?: string }>('/api/manager/events', fetcher)
+  // Live evenings at a glance, under the list (issue #44).
+  const overview = useSWR<{ evenings?: EveningSummary[]; error?: string }>('/api/manager/overview', fetcher)
   // The master list of collection places (issue #35). Ticked ones start every new evening.
   const placesRes = useSWR<{ places?: CollectionPlace[] }>('/api/manager/collection-places', fetcher)
   const places = placesRes.data?.places ?? []
@@ -69,6 +73,7 @@ export function EventsTab() {
   const back = () => {
     setView({ kind: 'list' })
     list.mutate()
+    overview.mutate()
     window.scrollTo(0, 0)
   }
 
@@ -88,6 +93,13 @@ export function EventsTab() {
           })
         }
         onCard={() => setView({ kind: 'card' })}
+        overview={
+          <LiveEvenings
+            evenings={overview.data?.evenings}
+            error={overview.error || overview.data?.error}
+            onOrders={onShowOrders}
+          />
+        }
       />
     )
   }
@@ -141,12 +153,14 @@ function EventList({
   onOpen,
   onNew,
   onCard,
+  overview,
 }: {
   events?: EventListItem[]
   error?: unknown
   onOpen: (id: string) => void
   onNew: () => void
   onCard: () => void
+  overview: ReactNode
 }) {
   return (
     <div className="space-y-8">
@@ -191,6 +205,8 @@ function EventList({
           ))}
         </ul>
       )}
+
+      <div className="pt-8">{overview}</div>
     </div>
   )
 }

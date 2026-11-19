@@ -29,11 +29,11 @@ const FILTERS: { id: Filter; label: string }[] = [
   { id: 'cancelled', label: 'Cancelled' },
 ]
 
-export function OrdersTab() {
+export function OrdersTab({ initialEventId = null }: { initialEventId?: string | null }) {
   const events = useSWR<{ events?: EventListItem[] }>('/api/manager/events', fetcher)
-  // The evening Eleanor picked; until she picks one, the next evening to come
-  // (or the latest one if none are coming).
-  const [picked, setEventId] = useState<string | null>(null)
+  // The evening Eleanor picked (or opened from Events → At a glance, issue #44);
+  // until she picks one, the next evening to come (or the latest one if none are coming).
+  const [picked, setEventId] = useState<string | null>(initialEventId)
   const eventId = picked ?? (events.data?.events?.length ? defaultEventId(events.data.events) : null)
   const [adding, setAdding] = useState(false)
   // The order being changed (issue #21); shown in place of the list, like "Add an order".

@@ -48,8 +48,8 @@ export function EmailsTab() {
         </Status>
         <Status ok={data.remindersReady}>
           {data.remindersReady
-            ? 'The 18:00 reminders and Monday mailing list are set up.'
-            : 'The 18:00 reminders and Monday mailing list are not set up yet (CRON_SECRET missing in Vercel).'}
+            ? 'The 18:00 reminders and Monday emails are set up.'
+            : 'The 18:00 reminders and Monday emails are not set up yet (CRON_SECRET missing in Vercel).'}
         </Status>
         <p className="text-sm text-stone">
           From {EMAIL_FROM}. Replies go to {EMAIL_REPLY_TO}. Your copies go to {OWNER_EMAIL}.
@@ -83,6 +83,21 @@ export function EmailsTab() {
             Send me my mailing list every Monday at 8:00
             <span className="block text-sm text-stone">
               Who joined and who unsubscribed that week, with the full list attached as a spreadsheet.
+            </span>
+          </span>
+        </label>
+        <label className="flex cursor-pointer items-start gap-3">
+          <input
+            type="checkbox"
+            className="mt-1 h-4 w-4 accent-gold"
+            checked={settings.summaryOn}
+            onChange={(e) => save({ ...settings, summaryOn: e.target.checked })}
+          />
+          <span className="text-charcoal">
+            Send me a summary of my evenings every Monday at 8:00
+            <span className="block text-sm text-stone">
+              A separate email: places, orders, dishes, collection points and money for each live evening, and what changed
+              that week. Not sent when no evening is live. Test evenings are left out.
             </span>
           </span>
         </label>

@@ -48,6 +48,8 @@ type Tab = (typeof TABS)[number]['id']
 
 export function ManagerConsole() {
   const [tab, setTab] = useState<Tab>('events')
+  // "See orders" on an evening in Events → At a glance (issue #44) opens Orders on that evening.
+  const [ordersFor, setOrdersFor] = useState<string | null>(null)
 
   return (
     <div className="min-h-dvh bg-background pb-16 print:min-h-0 print:bg-white print:pb-0">
@@ -89,7 +91,10 @@ export function ManagerConsole() {
                 key={t.id}
                 type="button"
                 aria-current={active ? 'page' : undefined}
-                onClick={() => setTab(t.id)}
+                onClick={() => {
+                  setOrdersFor(null)
+                  setTab(t.id)
+                }}
                 className={cn(
                   'caps shrink-0 border-b-2 px-3 py-3 transition-colors',
                   active
@@ -105,9 +110,17 @@ export function ManagerConsole() {
       </div>
 
       <main className="mx-auto max-w-3xl px-4 py-8 print:max-w-none print:p-0">
-        {tab === 'orders' ? <OrdersTab /> : null}
+        {tab === 'orders' ? <OrdersTab initialEventId={ordersFor} /> : null}
         {tab === 'printouts' ? <PrintoutsTab /> : null}
-        {tab === 'events' ? <EventsTab /> : null}
+        {tab === 'events' ? (
+          <EventsTab
+            onShowOrders={(id) => {
+              setOrdersFor(id)
+              setTab('orders')
+              window.scrollTo(0, 0)
+            }}
+          />
+        ) : null}
         {tab === 'customers' ? <CustomersTab /> : null}
         {tab === 'emails' ? <EmailsTab /> : null}
         {tab === 'settings' ? <SettingsTab /> : null}

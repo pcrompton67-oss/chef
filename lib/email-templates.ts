@@ -3,6 +3,7 @@ import { formatDate, formatMoney, formatTime, type Locale } from '@/lib/i18n'
 import { SITE_URL } from '@/lib/site'
 import { confirmSignupPath, unsubscribePath } from '@/lib/unsubscribe-link'
 import { customText, fillPlaceholders, paragraphs, type EmailWording, type WordingKind } from '@/lib/email-wording'
+import { attentionLines, ordersAndDiners, type EveningSummary } from '@/lib/evening-summary'
 
 /**
  * The emails (issue #13): what they say and how they look, in HTML and plain
@@ -17,8 +18,8 @@ import { customText, fillPlaceholders, paragraphs, type EmailWording, type Wordi
 
 /** Emails about one order. */
 export type OrderEmailKind = 'received' | 'confirmed' | 'reminder' | 'owner'
-/** All emails: order emails, the order-changed email (issue #40), the sign-up confirmation, and Eleanor's weekly list (issue #10). */
-export type EmailKind = OrderEmailKind | 'changed' | 'signup' | 'weekly'
+/** All emails: order emails, the order-changed email (issue #40), the sign-up confirmation, Eleanor's weekly list (issue #10) and her Monday summary of live evenings (issue #44). */
+export type EmailKind = OrderEmailKind | 'changed' | 'signup' | 'weekly' | 'summary'
 
 export const EMAIL_KINDS: { id: EmailKind; label: string; when: string }[] = [
   { id: 'received', label: 'Request received', when: 'Sent to the customer as soon as they order.' },
@@ -28,6 +29,7 @@ export const EMAIL_KINDS: { id: EmailKind; label: string; when: string }[] = [
   { id: 'owner', label: 'Your copy', when: 'Sent to you for every new website order. Always in English.' },
   { id: 'signup', label: 'Confirm subscription', when: 'Sent when someone uses a sign-up box. They join the mailing list only once they click the button.' },
   { id: 'weekly', label: 'Weekly mailing list', when: 'Sent to you every Monday at 8:00, with the full list attached as a spreadsheet. Always in English.' },
+  { id: 'summary', label: 'Monday summary', when: 'Sent to you every Monday at 8:00: how each live evening stands and what changed in the last week. Not sent when no evening is live. Test evenings left out. Always in English.' },
 ]
 
 /** Everything an email needs to know about one order. */
@@ -208,6 +210,100 @@ export function renderWeeklyList(w: WeeklyListEmail): RenderedEmail {
   return { subject, ...b.finish('Eleanor Jessica · console', subject) }
 }
 
+/**
+ * Eleanor's Monday summary (issue #44): every live evening (open, sold out or
+ * orders closed; never test evenings), soonest first. Same figures as
+ * Console → Events → At a glance. Only sent when there's at least one.
+ */
+export function renderWeeklySummary(evenings: EveningSummary[]): RenderedEmail {
+  const money = (c: number) => formatMoney(c, 'en')
+  const diners = (n: number) => `${n} diner${n === 1 ? '' : 's'}`
+  const places = evenings.reduce((t, e) => t + e.placesTaken, 0)
+  const subject = `This week · ${evenings.length} live evening${evenings.length === 1 ? '' : 's'} · ${places} places taken`
+  const b = new Builder()
+  b.title('Your evenings this week')
+  const fresh = evenings.reduce((t, e) => t + e.week.newOrders, 0)
+  const gone = evenings.reduce((t, e) => t + e.week.cancelled, 0)
+  b.para(
+    `${evenings.length === 1 ? 'One evening is' : `${evenings.length} evenings are`} live. In the last seven days: ${fresh} new order${fresh === 1 ? '' : 's'}, ${gone} cancelled.`,
+  )
+  for (const e of evenings) {
+    b.heading(`${e.title} · ${formatDate(e.date, 'en', false)}`)
+    const attention = attentionLines(e, money)
+    const status = e.status === 'open' ? 'Open for orders' : e.status === 'sold_out' ? 'Sold out' : 'Orders closed'
+    const [cutDate, cutTime] = e.cutoff.split(' ')
+    const rows: [string, string][] = [
+      ['Status', `${status} · last orders ${formatDate(cutDate, 'en', false)}, ${cutTime}`],
+      ['Places', `${e.placesTaken} / ${e.capacity} taken · ${Math.max(0, e.capacity - e.placesTaken)} left`],
+      ['Confirmed', ordersAndDiners(e.confirmed)],
+      ['Awaiting deposit', ordersAndDiners(e.waiting)],
+      ['Last 7 days', `${e.week.newOrders} new (${diners(e.week.newDiners)}) · ${e.week.cancelled} cancelled (${diners(e.week.cancelledDiners)})`],
+      ['Deposits received', money(e.depositsPaidCents)],
+      ['Balance to collect', money(e.balanceDueCents)],
+    ]
+    if (attention.length) rows.push(['Needs attention', attention.join(' · ')])
+    b.table(rows, attention.length > 0)
+    if (e.choices.length) {
+      b.table(e.choices.map((c) => [c.course, c.dishes.map((d) => `${d.name} × ${d.count}`).join(' · ')]))
+    }
+    if (e.points.length) b.table(e.points.map((p) => [`${p.time} ${p.place}`, diners(p.diners)]))
+  }
+  b.para('The same summary is in the console, under Events → At a glance.', true)
+  b.link('Open the console', `${SITE_URL}/manager`)
+  return { subject, ...b.finish('Eleanor Jessica · console', subject) }
+}
+
+/** Two made-up evenings for the console preview. */
+export function sampleWeeklySummary(): EveningSummary[] {
+  const friday = (weeks: number) => {
+    const d = new Date()
+    d.setDate(d.getDate() + ((5 - d.getDay() + 7) % 7 || 7) + 7 * weeks)
+    return d.toISOString().slice(0, 10)
+  }
+  const cut = (date: string) => {
+    const d = new Date(`${date}T12:00:00Z`)
+    d.setUTCDate(d.getUTCDate() - 2)
+    return `${d.toISOString().slice(0, 10)} 23:59`
+  }
+  const base = {
+    isTest: false,
+    payingByCard: 0,
+    points: [
+      { place: 'Lorigné', time: '17:00', diners: 0 },
+      { place: 'Sauzé-Vaussais', time: '17:30', diners: 0 },
+      { place: 'Ruffec', time: '18:30', diners: 0 },
+    ],
+  }
+  return [
+    {
+      ...base,
+      id: '1', title: 'Inspired by India', date: friday(0), status: 'open', cutoff: cut(friday(0)), capacity: 40, placesTaken: 34,
+      confirmed: { orders: 10, diners: 28 }, waiting: { orders: 2, diners: 6 }, overdue: 1,
+      choices: [{ course: 'Main', dishes: [{ name: 'Chicken Tikka Masala Pithivier', count: 22 }, { name: 'Smoked Aubergine & Chickpea Pithivier', count: 12 }] }],
+      points: [
+        { place: 'Lorigné', time: '17:00', diners: 10 },
+        { place: 'Sauzé-Vaussais', time: '17:30', diners: 16 },
+        { place: 'Ruffec', time: '18:30', diners: 8 },
+      ],
+      depositsPaidCents: 56000, balanceDueCents: 68000, refunds: { orders: 1, cents: 4000 }, allergyOrders: 3,
+      week: { newOrders: 5, newDiners: 14, cancelled: 1, cancelledDiners: 2 },
+    },
+    {
+      ...base,
+      id: '2', title: 'A Taste of Provence', date: friday(2), status: 'open', cutoff: cut(friday(2)), capacity: 40, placesTaken: 8,
+      confirmed: { orders: 2, diners: 6 }, waiting: { orders: 1, diners: 2 }, overdue: 0,
+      choices: [{ course: 'Main', dishes: [{ name: 'Lamb Daube', count: 5 }, { name: 'Ratatouille Tian', count: 3 }] }],
+      points: [
+        { place: 'Lorigné', time: '17:00', diners: 4 },
+        { place: 'Sauzé-Vaussais', time: '17:30', diners: 4 },
+        { place: 'Ruffec', time: '18:30', diners: 0 },
+      ],
+      depositsPaidCents: 12000, balanceDueCents: 16000, refunds: { orders: 0, cents: 0 }, allergyOrders: 0,
+      week: { newOrders: 3, newDiners: 8, cancelled: 0, cancelledDiners: 0 },
+    },
+  ]
+}
+
 /** Made-up week for the console preview. */
 export function sampleWeeklyList(): WeeklyListEmail {
   const day = (n: number) => {
@@ -229,6 +325,7 @@ export function sampleWeeklyList(): WeeklyListEmail {
 export function renderPreview(kind: EmailKind, locale: Locale, bank: BankDetails, w?: EmailWording): RenderedEmail {
   if (kind === 'signup') return renderSignupConfirm(locale, '0'.repeat(32), w)
   if (kind === 'weekly') return renderWeeklyList(sampleWeeklyList())
+  if (kind === 'summary') return renderWeeklySummary(sampleWeeklySummary())
   if (kind === 'changed') {
     const before = sampleOrder(locale)
     const after = sampleOrder(locale)

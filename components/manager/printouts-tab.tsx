@@ -6,7 +6,7 @@ import { fetcher } from '@/app/manager/manager-console'
 import { buttonStyles } from '@/components/site/button-styles'
 import type { EditableEvent } from '@/lib/event-editing'
 import type { EventListItem } from '@/lib/manager-events'
-import type { ConsoleOrder } from '@/lib/order-editing'
+import { hasAllergy, type ConsoleOrder } from '@/lib/order-editing'
 import { cn } from '@/lib/utils'
 
 /*
@@ -372,12 +372,6 @@ export function defaultEventId(list: EventListItem[]): string {
 
 function isWaiting(o: ConsoleOrder) {
   return (o.status === 'held' || o.status === 'awaiting_transfer') && o.takesPlaces
-}
-
-/** Ignores answers like "none", "no", "aucune", "-" in the allergies box. */
-function hasAllergy(text: string) {
-  const t = text.trim().toLowerCase().replace(/[.!]+$/, '')
-  return Boolean(t) && !/^(none|no|non|nil|nope|nothing|n\/?a|-+|aucune?s?|rien|pas d['’]allergies?|no allergies?|none known)$/.test(t)
 }
 
 function qty(o: ConsoleOrder, optionId: string) {

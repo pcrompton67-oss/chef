@@ -68,7 +68,7 @@ export function EmailWordingEditor({ bank }: { bank: BankDetails }) {
   if (remote.data?.error) return <p className="text-sm text-destructive">The email wording couldn’t be loaded.</p>
   if (!form) return <p className="text-sm text-stone">Loading…</p>
 
-  const englishOnly = kind === 'owner' || kind === 'weekly'
+  const englishOnly = kind === 'owner' || kind === 'weekly' || kind === 'summary'
   const info = EMAIL_KINDS.find((k) => k.id === kind)!
   const lng = englishOnly ? 'en' : lang
 
@@ -259,7 +259,7 @@ export function EmailWordingEditor({ bank }: { bank: BankDetails }) {
         <Choice active={plain} onClick={() => setPlain(true)}>Plain text</Choice>
       </div>
       <p className="text-sm text-stone">
-        {kind === 'signup' ? 'The link shown doesn’t work.' : kind === 'weekly' ? 'The people shown are made up.' : 'The order shown is made up.'}
+        {kind === 'signup' ? 'The link shown doesn’t work.' : kind === 'weekly' ? 'The people shown are made up.' : kind === 'summary' ? 'The evenings shown are made up.' : 'The order shown is made up.'}
       </p>
       <p className="text-sm text-charcoal">
         <span className="caps mr-2 text-[0.65rem] text-stone">Subject</span>

@@ -137,3 +137,9 @@ export const METHOD_LABEL: Record<string, string> = {
   cash: 'Cash',
   cheque: 'Cheque',
 }
+
+/** Ignores answers like "none", "no", "aucune", "-" in the allergies box. */
+export function hasAllergy(text: string) {
+  const t = text.trim().toLowerCase().replace(/[.!]+$/, '')
+  return Boolean(t) && !/^(none|no|non|nil|nope|nothing|n\/?a|-+|aucune?s?|rien|pas d['’]allergies?|no allergies?|none known)$/.test(t)
+}
