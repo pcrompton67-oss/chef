@@ -1,7 +1,8 @@
 'use client'
 
 import { transferReference } from '@/lib/email-templates'
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
+import { defaultEventId } from '@/components/manager/printouts-tab'
 import useSWR from 'swr'
 import { fetcher, send } from '@/app/manager/manager-console'
 import { buttonStyles } from '@/components/site/button-styles'
@@ -30,20 +31,14 @@ const FILTERS: { id: Filter; label: string }[] = [
 
 export function OrdersTab() {
   const events = useSWR<{ events?: EventListItem[] }>('/api/manager/events', fetcher)
-  const [eventId, setEventId] = useState<string | null>(null)
+  // The evening Eleanor picked; until she picks one, the next evening to come
+  // (or the latest one if none are coming).
+  const [picked, setEventId] = useState<string | null>(null)
+  const eventId = picked ?? (events.data?.events?.length ? defaultEventId(events.data.events) : null)
   const [adding, setAdding] = useState(false)
   // The order being changed (issue #21); shown in place of the list, like "Add an order".
   const [editing, setEditing] = useState<ConsoleOrder | null>(null)
   const [filter, setFilter] = useState<Filter>('active')
-
-  // Start on the next evening to come (or the latest one if none are coming).
-  useEffect(() => {
-    const list = events.data?.events
-    if (eventId || !list?.length) return
-    const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' })
-    const upcoming = list.filter((e) => e.date >= today && e.status !== 'draft')
-    setEventId((upcoming[upcoming.length - 1] ?? list[0]).id)
-  }, [events.data, eventId])
 
   const detail = useSWR<{ event?: EditableEvent; facts?: EventFacts }>(
     eventId ? `/api/manager/events/${eventId}` : null,

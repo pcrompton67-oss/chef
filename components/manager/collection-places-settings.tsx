@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useLoadedForm } from '@/components/manager/use-loaded-form'
 import useSWR from 'swr'
 import { fetcher, send } from '@/app/manager/manager-console'
 import { buttonStyles } from '@/components/site/button-styles'
@@ -20,14 +21,11 @@ export function CollectionPlacesSettings() {
     '/api/manager/collection-places',
     fetcher,
   )
-  const [places, setPlaces] = useState<CollectionPlace[] | null>(null)
   const [dirty, setDirty] = useState(false)
+  // Filled from the saved list, except while there are unsaved changes.
+  const [places, setPlaces] = useLoadedForm(data?.places, (p) => p, dirty)
   const [state, setState] = useState<'idle' | 'saving' | 'saved'>('idle')
   const [error, setError] = useState('')
-
-  useEffect(() => {
-    if (data?.places && !dirty) setPlaces(data.places)
-  }, [data?.places, dirty])
 
   if (data?.error) return <p className="text-sm text-destructive">The collection places couldn’t be loaded.</p>
   if (!places) return <p className="text-sm text-stone">Loading…</p>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import useSWR from 'swr'
 import { fetcher } from '@/app/manager/manager-console'
 import { buttonStyles } from '@/components/site/button-styles'
@@ -25,14 +25,11 @@ const SHEETS: { id: Sheet; label: string }[] = [
 
 export function PrintoutsTab() {
   const events = useSWR<{ events?: EventListItem[] }>('/api/manager/events', fetcher)
-  const [eventId, setEventId] = useState<string | null>(null)
+  // The evening Eleanor picked; until she picks one, the next evening to come.
+  const [picked, setEventId] = useState<string | null>(null)
+  const eventId = picked ?? (events.data?.events?.length ? defaultEventId(events.data.events) : null)
   const [sheet, setSheet] = useState<Sheet>('prep')
   const [includeWaiting, setIncludeWaiting] = useState(false)
-
-  useEffect(() => {
-    const list = events.data?.events
-    if (!eventId && list?.length) setEventId(defaultEventId(list))
-  }, [events.data, eventId])
 
   const detail = useSWR<{ event?: EditableEvent }>(eventId ? `/api/manager/events/${eventId}` : null, fetcher)
   const orders = useSWR<{ orders?: ConsoleOrder[] }>(eventId ? `/api/manager/orders?event=${eventId}` : null, fetcher)

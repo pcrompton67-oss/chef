@@ -8,10 +8,6 @@ const eslintConfig = defineConfig([
   ...nextTs,
   {
     rules: {
-      // React's newer advice against filling state inside an effect. The
-      // console screens that do it (load, then fill a form) work correctly;
-      // kept as a warning so it's visible without failing the check.
-      'react-hooks/set-state-in-effect': 'warn',
       // A leading underscore marks a value that's unused on purpose.
       '@typescript-eslint/no-unused-vars': [
         'warn',

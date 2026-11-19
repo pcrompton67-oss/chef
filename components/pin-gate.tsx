@@ -33,21 +33,27 @@ export function PinGate({
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
-  // On mount, re-validate any stored PIN with the server.
+  // On mount, re-validate any stored PIN with the server (no stored PIN: locked).
   useEffect(() => {
+    let live = true
     const stored = getStoredPin(role)
-    if (!stored) {
+    const check = stored
+      ? fetch('/api/verify-pin', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ role, pin: stored }),
+        })
+          .then((r) => r.ok)
+          .catch(() => false)
+      : Promise.resolve(false)
+    check.then((ok) => {
+      if (!live) return
+      setUnlocked(ok)
       setChecked(true)
-      return
-    }
-    fetch('/api/verify-pin', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ role, pin: stored }),
     })
-      .then((r) => setUnlocked(r.ok))
-      .catch(() => setUnlocked(false))
-      .finally(() => setChecked(true))
+    return () => {
+      live = false
+    }
   }, [role])
 
   async function submit(e: React.FormEvent) {

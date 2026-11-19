@@ -81,7 +81,7 @@ Fine dining, calm and elegant. Taken from Eleanor's own files in `public/`:
 - Next.js 16 (App Router), React 19, TypeScript, Tailwind 4, shadcn/ui. Package manager: **pnpm**.
 - Next 16 differs from older versions: check `node_modules/next/dist/docs/` before writing Next-specific code.
 - `pnpm build` skips type checks (`next.config.mjs`), so also run `npx tsc --noEmit`.
-- `pnpm lint` runs ESLint with Next's recommended rules (`eslint.config.mjs`, issue #25); Vercel runs it as the Lint check on every deployment. It must finish with no errors (warnings are OK).
+- `pnpm lint` runs ESLint with Next's recommended rules (`eslint.config.mjs`, issue #25); Vercel runs it as the Lint check on every deployment. It must finish with no errors (warnings are OK). It refuses setting state inside an effect (issue #30): a console form filled from loaded data uses `useLoadedForm` (`components/manager/use-loaded-form.ts`), and a default choice (e.g. which evening to show) is worked out while rendering.
 - Database: Neon Postgres, raw SQL via `query()` in `lib/db.ts` (`@neondatabase/serverless`; falls back to plain `pg` when `DATABASE_URL` is a localhost address, for local previews), no ORM. The tables are defined by the numbered files in `migrations/` (see "Database" below). Treat any table change as hard to undo (ask first).
 - Manager auth: a single PIN (`MANAGER_PIN`), sent as the `x-pin` header and checked in `lib/pins.ts`.
 - Dates are always Europe/Paris time.

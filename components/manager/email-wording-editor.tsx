@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useLoadedForm } from '@/components/manager/use-loaded-form'
 import useSWR from 'swr'
 import { fetcher, send } from '@/app/manager/manager-console'
 import { buttonStyles } from '@/components/site/button-styles'
@@ -44,17 +45,14 @@ function withDefaults(w: EmailWording): EmailWording {
 
 export function EmailWordingEditor({ bank }: { bank: BankDetails }) {
   const remote = useSWR<Loaded>('/api/manager/emails/wording', fetcher)
-  const [form, setForm] = useState<EmailWording | null>(null)
   const [dirty, setDirty] = useState(false)
+  // Filled from the saved wording, except while there are unsaved changes.
+  const [form, setForm] = useLoadedForm(remote.data?.wording, withDefaults, dirty)
   const [kind, setKind] = useState<EmailKind>('received')
   const [lang, setLang] = useState<'en' | 'fr'>('en')
   const [plain, setPlain] = useState(false)
   const [busy, setBusy] = useState<'' | 'save' | 'french' | 'test'>('')
   const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null)
-
-  useEffect(() => {
-    if (remote.data?.wording && !dirty) setForm(withDefaults(remote.data.wording))
-  }, [remote.data, dirty])
 
   // Warn before leaving the page with unsaved wording.
   useEffect(() => {

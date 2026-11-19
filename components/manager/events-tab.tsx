@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, type ReactNode } from 'react'
+import { useLoadedForm } from '@/components/manager/use-loaded-form'
 import useSWR from 'swr'
 import { fetcher, send } from '@/app/manager/manager-console'
 import { buttonStyles } from '@/components/site/button-styles'
@@ -221,16 +222,13 @@ function EventEditor({
     id ? `/api/manager/events/${id}` : null,
     fetcher,
   )
-  const [form, setForm] = useState<Form | null>(start ? toForm(start) : null)
   const [slugTouched, setSlugTouched] = useState(Boolean(id))
   const [dirty, setDirty] = useState(false)
+  // Filled once the saved evening has loaded (and after each save), except
+  // while there are unsaved changes. A new evening starts from `start`.
+  const [form, setForm] = useLoadedForm(remote.data?.event, toForm, dirty, start ? toForm(start) : null)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null)
-
-  // Fill the form once the saved evening has loaded (and after each save).
-  useEffect(() => {
-    if (remote.data?.event && !dirty) setForm(toForm(remote.data.event))
-  }, [remote.data, dirty])
 
   // Warn before leaving the page with unsaved changes.
   useEffect(() => {

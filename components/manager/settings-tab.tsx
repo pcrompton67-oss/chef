@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
+import { useLoadedForm } from '@/components/manager/use-loaded-form'
 import useSWR from 'swr'
 import { fetcher, send } from '@/app/manager/manager-console'
 import { buttonStyles } from '@/components/site/button-styles'
@@ -28,13 +29,10 @@ const toForm = (s: BusinessSettings): Form => ({
 
 export function SettingsTab() {
   const { data, mutate } = useSWR<{ settings: BusinessSettings }>('/api/manager/settings', fetcher)
-  const [form, setForm] = useState<Form | null>(null)
+  // Filled from the saved settings (again after each save).
+  const [form, setForm] = useLoadedForm(data?.settings, toForm)
   const [state, setState] = useState<'idle' | 'saving' | 'saved'>('idle')
   const [error, setError] = useState('')
-
-  useEffect(() => {
-    if (data?.settings) setForm(toForm(data.settings))
-  }, [data?.settings])
 
   if (!data?.settings || !form) return <p className="text-sm text-stone">Loading…</p>
 
