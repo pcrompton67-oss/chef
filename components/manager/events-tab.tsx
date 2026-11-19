@@ -90,8 +90,8 @@ export function EventsTab() {
       <MenuCardStart
         events={list.data?.events}
         onCancel={back}
-        onRead={(draft, base, photos) => {
-          const { start, notes } = eventFromCard(draft, base, defaults, photos)
+        onRead={(draft, base, photos, capacity) => {
+          const { start, notes } = eventFromCard(draft, base, defaults, photos, capacity)
           setView({ kind: 'new', start, n: Date.now(), source: 'card', notes })
           window.scrollTo(0, 0)
         }}
@@ -909,34 +909,47 @@ function asNewCopy(e: EditableEvent): EditableEvent {
 
 /**
  * A new evening from a menu card read by Claude (issue #23): the menu, title,
- * date, price and intro from the card; everything else from the chosen
- * previous evening, or empty.
+ * date, price and intro from the card; the number of diners as given on the
+ * menu-card page and a deposit of half the price per person (issue #41);
+ * everything else from the chosen previous evening, or empty.
  */
 function eventFromCard(
   card: MenuCardDraft,
   base: EditableEvent | null,
   defaults: EditablePoint[],
   photos: CardPhotos,
+  capacity: number,
 ): { start: EditableEvent; notes: string[] } {
   const copied = base ? asNewCopy(base) : blankEvent()
   const from = defaults.length ? { ...copied, collectionPoints: defaults } : copied
+  const priceCents = card.priceCents ?? from.priceCents
+  const depositCents = Math.round(priceCents / 2)
   const notes = [...card.notes]
   if (!card.title) notes.push('No title was found on the card: please add one.')
   if (!card.date) notes.push('No date was found on the card: please add the date of the evening.')
   if (card.priceCents === null)
-    notes.push(base ? 'No price on the card: the price was copied from the earlier evening.' : 'No price on the card: please add one.')
+    notes.push(
+      base
+        ? 'No price on the card: the price was copied from the earlier evening.'
+        : 'No price on the card: please add the price, and the deposit (half the price per person).',
+    )
+  if (priceCents > 0)
+    notes.push(
+      `The deposit is set to half the price per person (€${(depositCents / 100).toFixed(2).replace(/\.00$/, '')}). If you change the price, change the deposit too.`,
+    )
   const points = defaults.length
     ? 'The collection points are the places ticked in Settings: please check the times.'
     : ''
-  notes.push(
-    base
-      ? defaults.length
-        ? `${photos.heroImage ? 'The deposit and number of diners' : 'The deposit, number of diners and main photo'} were copied from “${base.title}”. Please check them. ${points}`
-        : `The deposit, number of diners, ${photos.heroImage ? '' : 'main photo '}and collection points were copied from “${base.title}”. Please check them.`
-      : defaults.length
-        ? `The deposit and number of diners aren’t on the card: please fill them in. ${points}`
-        : 'The deposit, number of diners and collection points aren’t on the card: please fill them in.',
-  )
+  if (base)
+    notes.push(
+      defaults.length
+        ? photos.heroImage
+          ? points
+          : `The main photo was copied from “${base.title}”. Please check it. ${points}`
+        : `The ${photos.heroImage ? '' : 'main photo and '}collection points were copied from “${base.title}”. Please check them.`,
+    )
+  else if (defaults.length) notes.push(points)
+  else notes.push('The collection points aren’t on the card: please add them.')
   if (base?.isTest && !defaults.length)
     notes.push('That was a test evening: make sure the collection points have real addresses before opening for orders.')
   notes.push('Please check every dish, (v) mark and description line against the card.')
@@ -962,7 +975,11 @@ function eventFromCard(
       introFr: card.introFr || (card.intro ? '' : from.introFr),
       date: card.date,
       cutoffAt: card.date ? defaultCutoff(card.date) : '',
-      priceCents: card.priceCents ?? from.priceCents,
+      priceCents,
+      // Half the price per person (issue #41), never copied from the earlier evening.
+      depositCents,
+      // As given on the menu-card page (issue #41).
+      capacity,
       // Photos chosen on the menu-card page (issue #39) win over the copied ones.
       heroImage: photos.heroImage || from.heroImage,
       secondImage: photos.secondImage || from.secondImage,

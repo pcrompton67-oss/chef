@@ -14,7 +14,8 @@ import { ImagePicker } from '@/components/manager/image-picker'
  * (taken or chosen; shrunk here in the browser) or a PDF (sent as it is).
  * Claude reads them on the server, and the events tab opens the result in the
  * normal editor as an unsaved draft. Optionally she also picks the main and
- * second photo here (issue #39).
+ * second photo here (issue #39). The number of diners is set here too
+ * (issue #41); the deposit is half the price per person.
  */
 
 /** Photos chosen on this page; empty = decided as before (copied or the usual one). */
@@ -37,7 +38,7 @@ export function MenuCardStart({
 }: {
   events?: EventListItem[]
   onCancel: () => void
-  onRead: (draft: MenuCardDraft, base: EditableEvent | null, photos: CardPhotos) => void
+  onRead: (draft: MenuCardDraft, base: EditableEvent | null, photos: CardPhotos, capacity: number) => void
 }) {
   // Real evenings first (latest first), then test ones, marked as such.
   const byDate = [...(events ?? [])].sort((a, b) => b.date.localeCompare(a.date))
@@ -45,12 +46,18 @@ export function MenuCardStart({
   const choices = [...real, ...byDate.filter((e) => e.isTest)]
   const [cards, setCards] = useState<Partial<Record<Lang, Chosen>>>({})
   const [baseId, setBaseId] = useState<string | null>(null)
+  // The number of diners Eleanor typed; until she types one, the chosen evening's (or 40).
+  const [typedCapacity, setTypedCapacity] = useState<string | null>(null)
   const [photos, setPhotos] = useState<CardPhotos>({ heroImage: '', secondImage: '' })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
   // Until Eleanor picks, suggest copying from her latest real evening (never a test one).
   const chosenBase = baseId ?? real[0]?.id ?? ''
+  const capacityText =
+    typedCapacity ?? String(choices.find((e) => e.id === chosenBase)?.capacity ?? 40)
+  const capacity = Number(capacityText)
+  const capacityOk = /^\d+$/.test(capacityText.trim()) && capacity >= 1
 
   function choose(lang: Lang, f: File | null) {
     setError('')
@@ -89,7 +96,7 @@ export function MenuCardStart({
         const loaded = await fetcher(`/api/manager/events/${chosenBase}`)
         base = loaded?.event ?? null
       }
-      onRead(res.draft as MenuCardDraft, base, photos)
+      onRead(res.draft as MenuCardDraft, base, photos, capacity)
     } catch (err) {
       setError((err as Error).message || 'Something went wrong. Please try again.')
       setBusy(false)
@@ -177,9 +184,23 @@ export function MenuCardStart({
             ))}
           </select>
           <span className="block text-xs leading-relaxed text-stone">
-            The deposit, number of diners and main photo aren’t on the card, so they can be copied from an earlier
-            evening. The price is copied too if the card doesn’t show one. Collection points are the places ticked
-            in Settings.
+            The main photo isn’t on the card, so it can be copied from an earlier evening. The price is copied too if
+            the card doesn’t show one. Collection points are the places ticked in Settings.
+          </span>
+        </label>
+        <label className="block space-y-1.5">
+          <span className="block text-sm text-charcoal">Diners (capacity)</span>
+          <input
+            inputMode="numeric"
+            className="w-32 rounded-none border border-stone/40 bg-ivory px-3 py-2 text-base text-charcoal outline-none focus:border-gold"
+            value={capacityText}
+            disabled={busy}
+            onChange={(e) => setTypedCapacity(e.target.value)}
+          />
+          <span className={capacityOk ? 'block text-xs leading-relaxed text-stone' : 'block text-xs leading-relaxed text-destructive'}>
+            {capacityOk
+              ? 'How many diners the evening can take in all. The deposit is set to half the price per person.'
+              : 'Please enter a whole number of diners (at least 1).'}
           </span>
         </label>
       </section>
@@ -208,7 +229,7 @@ export function MenuCardStart({
       </section>
 
       <div className="space-y-4">
-        <button type="button" disabled={!chosen.length || busy} onClick={read} className={buttonStyles('solid')}>
+        <button type="button" disabled={!chosen.length || !capacityOk || busy} onClick={read} className={buttonStyles('solid')}>
           {busy ? 'Reading the menu…' : chosen.length > 1 ? 'Read both cards' : 'Read the menu'}
         </button>
         {busy ? (
