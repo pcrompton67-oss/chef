@@ -6,14 +6,19 @@ import { buttonStyles } from '@/components/site/button-styles'
 import type { EditableEvent } from '@/lib/event-editing'
 import type { EventListItem } from '@/lib/manager-events'
 import type { MenuCardDraft } from '@/lib/menu-card'
+import { ImagePicker } from '@/components/manager/image-picker'
 
 /*
  * Console → Events → "New evening from menu card" (issues #23, #33).
  * Eleanor gives her English card, her French card, or both, each as a photo
  * (taken or chosen; shrunk here in the browser) or a PDF (sent as it is).
  * Claude reads them on the server, and the events tab opens the result in the
- * normal editor as an unsaved draft.
+ * normal editor as an unsaved draft. Optionally she also picks the main and
+ * second photo here (issue #39).
  */
+
+/** Photos chosen on this page; empty = decided as before (copied or the usual one). */
+export type CardPhotos = { heroImage: string; secondImage: string }
 
 // Claude reads images best up to about this many pixels on the long side.
 const MAX_SIDE = 1568
@@ -32,7 +37,7 @@ export function MenuCardStart({
 }: {
   events?: EventListItem[]
   onCancel: () => void
-  onRead: (draft: MenuCardDraft, base: EditableEvent | null) => void
+  onRead: (draft: MenuCardDraft, base: EditableEvent | null, photos: CardPhotos) => void
 }) {
   // Real evenings first (latest first), then test ones, marked as such.
   const byDate = [...(events ?? [])].sort((a, b) => b.date.localeCompare(a.date))
@@ -40,6 +45,7 @@ export function MenuCardStart({
   const choices = [...real, ...byDate.filter((e) => e.isTest)]
   const [cards, setCards] = useState<Partial<Record<Lang, Chosen>>>({})
   const [baseId, setBaseId] = useState<string | null>(null)
+  const [photos, setPhotos] = useState<CardPhotos>({ heroImage: '', secondImage: '' })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -83,7 +89,7 @@ export function MenuCardStart({
         const loaded = await fetcher(`/api/manager/events/${chosenBase}`)
         base = loaded?.event ?? null
       }
-      onRead(res.draft as MenuCardDraft, base)
+      onRead(res.draft as MenuCardDraft, base, photos)
     } catch (err) {
       setError((err as Error).message || 'Something went wrong. Please try again.')
       setBusy(false)
@@ -176,6 +182,29 @@ export function MenuCardStart({
             in Settings.
           </span>
         </label>
+      </section>
+
+      <section className="space-y-6 border border-border bg-ivory px-4 py-6 sm:px-6">
+        <h3 className="caps text-gold-deep">3 · Photos (optional)</h3>
+        <p className="text-sm leading-relaxed text-stone">
+          Upload or choose the evening’s photos now, or leave them and do it later in the evening itself.
+        </p>
+        <div className="grid gap-6 sm:grid-cols-2">
+          <ImagePicker
+            label="Main photo (hero)"
+            hint="At the top of the evening’s page, and on its card on the home page. Empty: copied from the earlier evening, or the usual photo."
+            noneLabel="Not chosen"
+            value={photos.heroImage}
+            onChange={(v) => setPhotos((p) => ({ ...p, heroImage: v }))}
+          />
+          <ImagePicker
+            label="Second photo"
+            hint="Further down the evening’s page, beside the price and collection times. Empty: the usual photo."
+            noneLabel="Not chosen"
+            value={photos.secondImage}
+            onChange={(v) => setPhotos((p) => ({ ...p, secondImage: v }))}
+          />
+        </div>
       </section>
 
       <div className="space-y-4">

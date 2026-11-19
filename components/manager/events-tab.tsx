@@ -16,7 +16,7 @@ import {
 } from '@/lib/event-editing'
 import type { EventListItem } from '@/lib/manager-events'
 import type { MenuCardDraft } from '@/lib/menu-card'
-import { MenuCardStart } from '@/components/manager/menu-card-start'
+import { MenuCardStart, type CardPhotos } from '@/components/manager/menu-card-start'
 import { ImagePicker, PrintedMenuPicker } from '@/components/manager/image-picker'
 import { cn } from '@/lib/utils'
 
@@ -89,8 +89,8 @@ export function EventsTab() {
       <MenuCardStart
         events={list.data?.events}
         onCancel={back}
-        onRead={(draft, base) => {
-          const { start, notes } = eventFromCard(draft, base, defaults)
+        onRead={(draft, base, photos) => {
+          const { start, notes } = eventFromCard(draft, base, defaults, photos)
           setView({ kind: 'new', start, n: Date.now(), source: 'card', notes })
           window.scrollTo(0, 0)
         }}
@@ -918,6 +918,7 @@ function eventFromCard(
   card: MenuCardDraft,
   base: EditableEvent | null,
   defaults: EditablePoint[],
+  photos: CardPhotos,
 ): { start: EditableEvent; notes: string[] } {
   const copied = base ? asNewCopy(base) : blankEvent()
   const from = defaults.length ? { ...copied, collectionPoints: defaults } : copied
@@ -932,8 +933,8 @@ function eventFromCard(
   notes.push(
     base
       ? defaults.length
-        ? `The deposit, number of diners and main photo were copied from “${base.title}”. Please check them. ${points}`
-        : `The deposit, number of diners, main photo and collection points were copied from “${base.title}”. Please check them.`
+        ? `${photos.heroImage ? 'The deposit and number of diners' : 'The deposit, number of diners and main photo'} were copied from “${base.title}”. Please check them. ${points}`
+        : `The deposit, number of diners, ${photos.heroImage ? '' : 'main photo '}and collection points were copied from “${base.title}”. Please check them.`
       : defaults.length
         ? `The deposit and number of diners aren’t on the card: please fill them in. ${points}`
         : 'The deposit, number of diners and collection points aren’t on the card: please fill them in.',
@@ -964,6 +965,9 @@ function eventFromCard(
       date: card.date,
       cutoffAt: card.date ? defaultCutoff(card.date) : '',
       priceCents: card.priceCents ?? from.priceCents,
+      // Photos chosen on the menu-card page (issue #39) win over the copied ones.
+      heroImage: photos.heroImage || from.heroImage,
+      secondImage: photos.secondImage || from.secondImage,
       // The card(s) just read become the printed menus; the old evening's would be wrong for this one.
       menuImage: card.menuImage ?? '',
       menuImageFr: card.menuImageFr ?? '',
