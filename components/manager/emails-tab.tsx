@@ -1,9 +1,10 @@
 'use client'
 
-import { useMemo, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import useSWR from 'swr'
 import { fetcher, send } from '@/app/manager/manager-console'
-import { EMAIL_KINDS, renderPreview, type EmailKind } from '@/lib/email-templates'
+import { EMAIL_KINDS } from '@/lib/email-templates'
+import { EmailWordingEditor } from '@/components/manager/email-wording-editor'
 import type { EmailLogRow, EmailSettings } from '@/lib/emails'
 import { EMAIL_FROM, EMAIL_REPLY_TO, OWNER_EMAIL } from '@/lib/site'
 import { cn } from '@/lib/utils'
@@ -11,7 +12,8 @@ import { cn } from '@/lib/utils'
 /*
  * Console → Emails (issue #13): whether sending is set up, the reminders and
  * weekly mailing-list switches (issue #10), a preview of every
- * email in both languages (with a made-up order), and the recent send log.
+ * email in both languages (with a made-up order) where Eleanor can write her
+ * own opening and closing (issue #36, email-wording-editor.tsx), and the recent send log.
  */
 
 type Data = { settings: EmailSettings; log: EmailLogRow[]; sending: boolean; remindersReady: boolean }
@@ -97,7 +99,7 @@ export function EmailsTab() {
         </p>
       </section>
 
-      <Preview bank={settings} />
+      <EmailWordingEditor bank={settings} />
 
       <section className="space-y-3">
         <Heading>Recent emails</Heading>
@@ -123,49 +125,6 @@ export function EmailsTab() {
   )
 }
 
-function Preview({ bank }: { bank: { accountName: string; iban: string; bic: string } }) {
-  const [kind, setKind] = useState<EmailKind>('received')
-  const [lang, setLang] = useState<'en' | 'fr'>('en')
-  const [plain, setPlain] = useState(false)
-  const email = useMemo(() => renderPreview(kind, lang, bank), [kind, lang, bank])
-  const englishOnly = kind === 'owner' || kind === 'weekly'
-  const info = EMAIL_KINDS.find((k) => k.id === kind)!
-
-  return (
-    <section className="space-y-4">
-      <Heading>Preview</Heading>
-      <div className="flex flex-wrap gap-2" role="group" aria-label="Email">
-        {EMAIL_KINDS.map((k) => (
-          <Choice key={k.id} active={kind === k.id} onClick={() => setKind(k.id)}>
-            {k.label}
-          </Choice>
-        ))}
-      </div>
-      <div className="flex flex-wrap gap-2">
-        <Choice active={lang === 'en'} onClick={() => setLang('en')} disabled={englishOnly}>English</Choice>
-        <Choice active={lang === 'fr'} onClick={() => setLang('fr')} disabled={englishOnly}>Français</Choice>
-        <span className="w-4" />
-        <Choice active={!plain} onClick={() => setPlain(false)}>Designed</Choice>
-        <Choice active={plain} onClick={() => setPlain(true)}>Plain text</Choice>
-      </div>
-      <p className="text-sm text-stone">
-        {info.when} {kind === 'signup' ? 'The link shown doesn’t work.' : kind === 'weekly' ? 'The people shown are made up.' : 'The order shown is made up.'}
-      </p>
-      <p className="text-sm text-charcoal">
-        <span className="caps mr-2 text-[0.65rem] text-stone">Subject</span>
-        {email.subject}
-      </p>
-      {plain ? (
-        <pre className="max-h-[48rem] overflow-auto whitespace-pre-wrap border border-border bg-ivory p-5 font-sans text-sm text-charcoal">
-          {email.text}
-        </pre>
-      ) : (
-        <iframe title="Email preview" srcDoc={email.html} className="h-[48rem] w-full border border-border bg-white" />
-      )}
-    </section>
-  )
-}
-
 /* ---------- Small pieces ---------- */
 
 function Heading({ children }: { children: ReactNode }) {
@@ -178,32 +137,5 @@ function Status({ ok, children }: { ok: boolean; children: ReactNode }) {
       <span aria-hidden className={cn('mt-2 h-2 w-2 shrink-0', ok ? 'bg-gold' : 'border border-stone')} />
       {children}
     </p>
-  )
-}
-
-function Choice({
-  active,
-  onClick,
-  disabled,
-  children,
-}: {
-  active: boolean
-  onClick: () => void
-  disabled?: boolean
-  children: ReactNode
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={active}
-      disabled={disabled}
-      onClick={onClick}
-      className={cn(
-        'border px-4 py-2 text-sm transition-colors disabled:opacity-40',
-        active ? 'border-charcoal bg-charcoal text-ivory' : 'border-stone/40 text-charcoal hover:border-gold',
-      )}
-    >
-      {children}
-    </button>
   )
 }

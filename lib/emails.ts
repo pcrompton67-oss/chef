@@ -1,6 +1,7 @@
 import { query } from '@/lib/db'
 import {
   renderEmail,
+  renderPreview,
   renderSignupConfirm,
   renderWeeklyList,
   type BankDetails,
@@ -10,6 +11,7 @@ import {
   type RenderedEmail,
 } from '@/lib/email-templates'
 import type { Locale } from '@/lib/i18n'
+import { normalizeWording, WORDING_KINDS, type EmailWording, type WordingKind } from '@/lib/email-wording'
 import { mailingListCsv, weeklyListSummary } from '@/lib/customers'
 import { getBusinessSettings } from '@/lib/settings'
 import { EMAIL_FROM, EMAIL_REPLY_TO, OWNER_EMAIL, SITE_URL } from '@/lib/site'
@@ -51,6 +53,50 @@ export async function saveEmailSettings(raw: unknown): Promise<EmailSettings> {
     [b.remindersOn !== false, b.weeklyListOn !== false],
   )
   return getEmailSettings()
+}
+
+/* ---------- Eleanor's own wording (issue #36; settings key 'email_wording') ---------- */
+
+export async function getEmailWording(): Promise<EmailWording> {
+  const [row] = await query<{ value: unknown }>(`SELECT value FROM settings WHERE key = 'email_wording'`)
+  return normalizeWording(row?.value)
+}
+
+export async function saveEmailWording(raw: unknown): Promise<EmailWording> {
+  const value = normalizeWording(raw)
+  await query(
+    `INSERT INTO settings (key, value) VALUES ('email_wording', $1::jsonb)
+     ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`,
+    [JSON.stringify(value)],
+  )
+  return value
+}
+
+/** Wording for an email about to go out; the original wording if it can't be read. */
+async function wordingOrDefault(): Promise<EmailWording | undefined> {
+  return getEmailWording().catch((err) => {
+    console.error('Email wording could not be read; using the original wording', err)
+    return undefined
+  })
+}
+
+/**
+ * Console → Emails → "Send me a test": the chosen email with a made-up order
+ * and the wording on screen (saved or not), to Eleanor's own address.
+ */
+export async function sendTestEmail(
+  kind: unknown,
+  locale: unknown,
+  wording: unknown,
+): Promise<'sent' | 'failed' | 'skipped' | 'invalid'> {
+  if (!WORDING_KINDS.includes(kind as WordingKind) || (locale !== 'en' && locale !== 'fr')) return 'invalid'
+  const email = renderPreview(kind as WordingKind, locale, await getEmailSettings(), normalizeWording(wording))
+  return deliver({
+    kind: kind as WordingKind,
+    to: OWNER_EMAIL,
+    email: { ...email, subject: `[Test] ${email.subject}` },
+    idempotencyKey: `test-${kind}-${locale}-${Date.now()}`,
+  })
 }
 
 export function sendingEnabled(): boolean {
@@ -179,7 +225,7 @@ async function deliver(d: Delivery): Promise<'sent' | 'failed' | 'skipped'> {
 }
 
 /** An email about one order. */
-function send(
+async function send(
   kind: OrderEmailKind,
   to: string,
   o: EmailOrder & { eventId: string },
@@ -188,7 +234,7 @@ function send(
   return deliver({
     kind,
     to,
-    email: renderEmail(kind, o, bank),
+    email: renderEmail(kind, o, bank, kind === 'owner' ? undefined : await wordingOrDefault()),
     orderId: o.id,
     eventId: o.eventId,
     idempotencyKey: `${kind}-${o.id}`,
@@ -287,11 +333,11 @@ export async function sendReminders(): Promise<{ sent: number; failed: number; s
 
 /** The "please confirm" email after someone uses a sign-up box. */
 export function emailSignupConfirmation(to: string, locale: Locale, token: string) {
-  return safely('signup confirmation', () =>
+  return safely('signup confirmation', async () =>
     deliver({
       kind: 'signup',
       to,
-      email: renderSignupConfirm(locale, token),
+      email: renderSignupConfirm(locale, token, await wordingOrDefault()),
       idempotencyKey: `signup-${token}-${new Date().toISOString().slice(0, 13)}`,
     }),
   )

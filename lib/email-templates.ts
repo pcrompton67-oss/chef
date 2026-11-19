@@ -2,6 +2,7 @@ import { content } from '@/lib/content'
 import { formatDate, formatMoney, formatTime, type Locale } from '@/lib/i18n'
 import { SITE_URL } from '@/lib/site'
 import { confirmSignupPath, unsubscribePath } from '@/lib/unsubscribe-link'
+import { customText, fillPlaceholders, paragraphs, type EmailWording, type WordingKind } from '@/lib/email-wording'
 
 /**
  * The emails (issue #13): what they say and how they look, in HTML and plain
@@ -10,6 +11,8 @@ import { confirmSignupPath, unsubscribePath } from '@/lib/unsubscribe-link'
  *
  * Customer emails follow the order's language; wording is in lib/content.ts
  * (the `email` section). Eleanor's copy is always in English.
+ * Eleanor can replace the opening and closing paragraphs and the sign-off of
+ * customer emails with her own wording (issue #36, lib/email-wording.ts).
  */
 
 /** Emails about one order. */
@@ -72,20 +75,27 @@ export function hasBankDetails(b: BankDetails): boolean {
   return Boolean(b.accountName.trim() && b.iban.trim())
 }
 
-export function renderEmail(kind: OrderEmailKind, o: EmailOrder, bank: BankDetails): RenderedEmail {
+export function renderEmail(kind: OrderEmailKind, o: EmailOrder, bank: BankDetails, w?: EmailWording): RenderedEmail {
   if (kind === 'owner') return ownerCopy(o, bank)
   const loc = o.language
   const c = content[loc].email
   const date = formatDate(o.event.date, loc)
   const money = (cents: number) => formatMoney(cents, loc)
   const b = new Builder()
+  const vars = { name: o.name, evening: o.event.title, date }
+  // Eleanor's own opening/closing (issue #36) when she has written one, else the original.
+  const own = (k: WordingKind, part: 'opening' | 'closing', fallback: () => void) => {
+    const t = customText(w, k, part, loc)
+    if (t) for (const p of paragraphs(fillPlaceholders(t, vars))) b.para(p)
+    else fallback()
+  }
 
   let subject: string
   if (kind === 'received') {
     subject = c.received.subject(o.event.title)
     b.title(c.received.title)
     b.para(c.greeting(o.name))
-    b.para(c.received.intro(o.event.title, date))
+    own('received', 'opening', () => b.para(c.received.intro(o.event.title, date)))
     summary(b, o, loc, false)
     if (o.depositCents > 0 && !o.depositPaid) {
       b.heading(c.received.payTitle)
@@ -111,11 +121,14 @@ export function renderEmail(kind: OrderEmailKind, o: EmailOrder, bank: BankDetai
       b.para(c.received.cardPaid(money(o.depositCents)))
     }
     b.para(c.received.addressNote, true)
+    own('received', 'closing', () => {})
   } else if (kind === 'confirmed') {
     subject = c.confirmed.subject(o.event.title)
     b.title(c.confirmed.title)
     b.para(c.greeting(o.name))
-    b.para(o.depositCents > 0 ? c.confirmed.intro(o.event.title, date) : c.confirmed.introNoDeposit(o.event.title, date))
+    own('confirmed', 'opening', () =>
+      b.para(o.depositCents > 0 ? c.confirmed.intro(o.event.title, date) : c.confirmed.introNoDeposit(o.event.title, date)),
+    )
     b.heading(c.confirmed.collectionTitle)
     collection(b, o, loc)
     if (o.balanceCents > 0) b.para(c.confirmed.balanceNote, true)
@@ -123,18 +136,19 @@ export function renderEmail(kind: OrderEmailKind, o: EmailOrder, bank: BankDetai
     b.para(o.allergies.trim() || c.noAllergies)
     b.para(c.confirmed.allergiesNote, true)
     summary(b, o, loc, true)
+    own('confirmed', 'closing', () => {})
   } else {
     subject = c.reminder.subject(o.event.title)
     b.title(c.reminder.title)
     b.para(c.greeting(o.name))
-    b.para(c.reminder.intro(o.event.title, date))
+    own('reminder', 'opening', () => b.para(c.reminder.intro(o.event.title, date)))
     collection(b, o, loc)
     if (o.balanceCents > 0) b.para(content[loc].email.confirmed.balanceNote, true)
-    b.para(c.reminder.outro)
+    own('reminder', 'closing', () => b.para(c.reminder.outro))
   }
 
   b.para(c.replyNote, true)
-  b.signOff(c.signOff, c.signature)
+  b.signOff(signOffLine(w, loc), signatureName(w, loc))
   const unsubscribe = o.unsubscribeToken
     ? { label: c.unsubscribe, url: SITE_URL + unsubscribePath(o.unsubscribeToken, loc) }
     : undefined
@@ -142,17 +156,21 @@ export function renderEmail(kind: OrderEmailKind, o: EmailOrder, bank: BankDetai
 }
 
 /** The sign-up confirmation (double opt-in): one button that puts them on the list. */
-export function renderSignupConfirm(locale: Locale, token: string): RenderedEmail {
+export function renderSignupConfirm(locale: Locale, token: string, w?: EmailWording): RenderedEmail {
   const c = content[locale].email
   const s = c.signup
   const b = new Builder()
   b.title(s.title)
   b.para(s.greeting)
-  b.para(s.intro)
+  const opening = customText(w, 'signup', 'opening', locale)
+  if (opening) for (const p of paragraphs(opening)) b.para(p)
+  else b.para(s.intro)
   b.link(s.button, SITE_URL + confirmSignupPath(token, locale))
   b.para(s.expires, true)
   b.para(s.ignore, true)
-  b.signOff(c.signOff, c.signature)
+  const closing = customText(w, 'signup', 'closing', locale)
+  if (closing) for (const p of paragraphs(closing)) b.para(p)
+  b.signOff(signOffLine(w, locale), signatureName(w, locale))
   return { subject: s.subject, ...b.finish(c.footer, s.subject) }
 }
 
@@ -207,10 +225,18 @@ export function sampleWeeklyList(): WeeklyListEmail {
 }
 
 /** Any email with made-up content, for the console's previews. */
-export function renderPreview(kind: EmailKind, locale: Locale, bank: BankDetails): RenderedEmail {
-  if (kind === 'signup') return renderSignupConfirm(locale, '0'.repeat(32))
+export function renderPreview(kind: EmailKind, locale: Locale, bank: BankDetails, w?: EmailWording): RenderedEmail {
+  if (kind === 'signup') return renderSignupConfirm(locale, '0'.repeat(32), w)
   if (kind === 'weekly') return renderWeeklyList(sampleWeeklyList())
-  return renderEmail(kind, sampleOrder(locale), bank)
+  return renderEmail(kind, sampleOrder(locale), bank, w)
+}
+
+/** The sign-off line and name: Eleanor's own if she has written them (issue #36). */
+function signOffLine(w: EmailWording | undefined, loc: Locale): string {
+  return w?.signOff[loc]?.trim() || content[loc].email.signOff
+}
+function signatureName(w: EmailWording | undefined, loc: Locale): string {
+  return w?.signature[loc]?.trim() || content[loc].email.signature
 }
 
 /** Time, place, address and the balance: for the confirmed and reminder emails. */
