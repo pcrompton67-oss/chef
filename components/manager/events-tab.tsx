@@ -14,7 +14,12 @@ import {
   type EditablePoint,
   type EventFacts,
   type ManagerStatus,
+  type CutoffRule,
+  DEFAULT_CUTOFF,
+  cutoffFor,
+  describeCutoff,
 } from '@/lib/event-editing'
+import type { BusinessSettings } from '@/lib/settings'
 import type { EventListItem } from '@/lib/manager-events'
 import type { MenuCardDraft } from '@/lib/menu-card'
 import { MenuCardStart, type CardPhotos } from '@/components/manager/menu-card-start'
@@ -56,6 +61,7 @@ export function EventsTab() {
   const placesRes = useSWR<{ places?: CollectionPlace[] }>('/api/manager/collection-places', fetcher)
   const places = placesRes.data?.places ?? []
   const defaults = places.filter((p) => p.inNewEvents).map(pointFromPlace)
+  const cutoffRule = useCutoffRule()
   // A new evening gets the ticked places; with none ticked it keeps what it had (empty, or copied).
   const withDefaults = (e: EditableEvent) =>
     defaults.length ? { ...e, collectionPoints: defaults } : e
@@ -89,9 +95,10 @@ export function EventsTab() {
     return (
       <MenuCardStart
         events={list.data?.events}
+        cutoffRule={cutoffRule}
         onCancel={back}
-        onRead={(draft, photos, capacity) => {
-          const { start, notes } = eventFromCard(draft, defaults, photos, capacity)
+        onRead={(draft, photos, capacity, cutoff) => {
+          const { start, notes } = eventFromCard(draft, defaults, photos, capacity, cutoff)
           setView({ kind: 'new', start, n: Date.now(), source: 'card', notes })
           window.scrollTo(0, 0)
         }}
@@ -222,6 +229,7 @@ function EventEditor({
     id ? `/api/manager/events/${id}` : null,
     fetcher,
   )
+  const cutoffRule = useCutoffRule()
   const [slugTouched, setSlugTouched] = useState(Boolean(id))
   const [dirty, setDirty] = useState(false)
   // Filled once the saved evening has loaded (and after each save), except
@@ -468,7 +476,7 @@ function EventEditor({
               onChange={(e) =>
                 update({
                   date: e.target.value,
-                  ...(!form.cutoffAt && e.target.value ? { cutoffAt: defaultCutoff(e.target.value) } : {}),
+                  ...(!form.cutoffAt && e.target.value ? { cutoffAt: cutoffFor(e.target.value, cutoffRule) } : {}),
                 })
               }
             />
@@ -919,6 +927,7 @@ function eventFromCard(
   defaults: EditablePoint[],
   photos: CardPhotos,
   capacity: number,
+  cutoff: CutoffRule,
 ): { start: EditableEvent; notes: string[] } {
   const from = blankEvent()
   const priceCents = card.priceCents ?? 0
@@ -926,7 +935,7 @@ function eventFromCard(
   const notes = [...card.notes]
   if (!card.title) notes.push('No title was found on the card: please add one.')
   if (!card.date) notes.push('No date was found on the card: please add the date of the evening.')
-  else notes.push('Orders close at 23:59 two days before the evening: change “Order cut-off” if you want another time.')
+  else notes.push(`Last orders are set to ${describeCutoff(cutoff)}: change them under “Last orders” if this evening needs another time.`)
   if (card.priceCents === null)
     notes.push('No price on the card: please add the price, and the deposit (half the price per person).')
   if (priceCents > 0)
@@ -961,7 +970,7 @@ function eventFromCard(
       themeFr: '',
       introFr: card.introFr,
       date: card.date,
-      cutoffAt: card.date ? defaultCutoff(card.date) : '',
+      cutoffAt: card.date ? cutoffFor(card.date, cutoff) : '',
       priceCents,
       // Half the price per person (issue #41).
       depositCents,
@@ -1019,11 +1028,11 @@ function slugify(s: string) {
     .replace(/^-+|-+$/g, '')
 }
 
-/** Two days before the evening, just before midnight. */
-function defaultCutoff(date: string) {
-  const d = new Date(date + 'T12:00:00Z')
-  d.setUTCDate(d.getUTCDate() - 2)
-  return d.toISOString().slice(0, 10) + 'T23:59'
+/** When new evenings' orders close, from Console → Settings (issue #43); the usual rule until loaded. */
+function useCutoffRule(): CutoffRule {
+  const { data } = useSWR<{ settings?: BusinessSettings }>('/api/manager/settings', fetcher)
+  const s = data?.settings
+  return s ? { cutoffDaysBefore: s.cutoffDaysBefore, cutoffTime: s.cutoffTime } : DEFAULT_CUTOFF
 }
 
 function move<T>(list: T[], i: number, by: -1 | 1): T[] {

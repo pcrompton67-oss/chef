@@ -111,3 +111,37 @@ export type EventFacts = {
   usedOptionIds: string[]
   usedPointIds: string[]
 }
+
+/* ---------- When orders close (Console → Settings, issue #43) ---------- */
+
+/** How a new evening's last orders are set: so many days before, at a time (Paris). */
+export type CutoffRule = { cutoffDaysBefore: number; cutoffTime: string }
+export const DEFAULT_CUTOFF: CutoffRule = { cutoffDaysBefore: 2, cutoffTime: '23:59' }
+export const MAX_CUTOFF_DAYS = 14
+
+/** True for a number of days from 0 to MAX_CUTOFF_DAYS and a time like 18:00. */
+export function cutoffRuleOk(r: CutoffRule) {
+  return (
+    Number.isInteger(r.cutoffDaysBefore) &&
+    r.cutoffDaysBefore >= 0 &&
+    r.cutoffDaysBefore <= MAX_CUTOFF_DAYS &&
+    /^([01]\d|2[0-3]):[0-5]\d$/.test(r.cutoffTime)
+  )
+}
+
+/** Last orders for an evening on `date` (YYYY-MM-DD): YYYY-MM-DDTHH:MM, Paris time. */
+export function cutoffFor(date: string, rule: CutoffRule = DEFAULT_CUTOFF) {
+  const r = cutoffRuleOk(rule) ? rule : DEFAULT_CUTOFF
+  const d = new Date(date + 'T12:00:00Z')
+  d.setUTCDate(d.getUTCDate() - r.cutoffDaysBefore)
+  return d.toISOString().slice(0, 10) + 'T' + r.cutoffTime
+}
+
+/** "2 days before, at 23:59" / "the same day, at 15:00", for notes and hints. */
+export function describeCutoff(r: CutoffRule) {
+  const when =
+    r.cutoffDaysBefore === 0
+      ? 'on the day of the evening'
+      : `${r.cutoffDaysBefore} day${r.cutoffDaysBefore === 1 ? '' : 's'} before the evening`
+  return `${when}, at ${r.cutoffTime}`
+}

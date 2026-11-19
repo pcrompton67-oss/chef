@@ -6,6 +6,7 @@ import { buttonStyles } from '@/components/site/button-styles'
 import type { EventListItem } from '@/lib/manager-events'
 import type { MenuCardDraft } from '@/lib/menu-card'
 import { ImagePicker } from '@/components/manager/image-picker'
+import { MAX_CUTOFF_DAYS, cutoffRuleOk, describeCutoff, type CutoffRule } from '@/lib/event-editing'
 
 /*
  * Console → Events → "New evening from menu card" (issues #23, #33).
@@ -14,8 +15,9 @@ import { ImagePicker } from '@/components/manager/image-picker'
  * Claude reads them on the server, and the events tab opens the result in the
  * normal editor as an unsaved draft. Optionally she also picks the main and
  * second photo here (issue #39). The number of diners is set here too
- * (issue #41); the deposit is half the price per person. Nothing is copied
- * from an earlier evening (issue #42).
+ * (issue #41), and when orders close, starting from Settings (issue #43); the
+ * deposit is half the price per person. Nothing is copied from an earlier
+ * evening (issue #42).
  */
 
 /** Photos chosen on this page; empty = the usual photo. */
@@ -33,18 +35,24 @@ const isPdf = (f: File) => f.type === 'application/pdf' || /\.pdf$/i.test(f.name
 
 export function MenuCardStart({
   events,
+  cutoffRule,
   onCancel,
   onRead,
 }: {
   events?: EventListItem[]
+  /** From Console → Settings; Eleanor can change it here for this evening. */
+  cutoffRule: CutoffRule
   onCancel: () => void
-  onRead: (draft: MenuCardDraft, photos: CardPhotos, capacity: number) => void
+  onRead: (draft: MenuCardDraft, photos: CardPhotos, capacity: number, cutoff: CutoffRule) => void
 }) {
   // Her latest real evening (never a test one), for the usual number of diners.
   const latest = [...(events ?? [])].filter((e) => !e.isTest).sort((a, b) => b.date.localeCompare(a.date))[0]
   const [cards, setCards] = useState<Partial<Record<Lang, Chosen>>>({})
   // The number of diners Eleanor typed; until she types one, her latest real evening's (or 40).
   const [typedCapacity, setTypedCapacity] = useState<string | null>(null)
+  // Last orders as Eleanor typed them; until she types, the rule from Settings.
+  const [typedDays, setTypedDays] = useState<string | null>(null)
+  const [typedTime, setTypedTime] = useState<string | null>(null)
   const [photos, setPhotos] = useState<CardPhotos>({ heroImage: '', secondImage: '' })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -52,6 +60,9 @@ export function MenuCardStart({
   const capacityText = typedCapacity ?? String(latest?.capacity ?? 40)
   const capacity = Number(capacityText)
   const capacityOk = /^\d+$/.test(capacityText.trim()) && capacity >= 1
+  const daysText = typedDays ?? String(cutoffRule.cutoffDaysBefore)
+  const cutoff: CutoffRule = { cutoffDaysBefore: Number(daysText), cutoffTime: typedTime ?? cutoffRule.cutoffTime }
+  const cutoffOk = /^\d+$/.test(daysText.trim()) && cutoffRuleOk(cutoff)
 
   function choose(lang: Lang, f: File | null) {
     setError('')
@@ -85,7 +96,7 @@ export function MenuCardStart({
       if (prepared.reduce((n, c) => n + (c.data.length * 3) / 4, 0) > MAX_TOTAL_BYTES)
         throw new Error('Together these files are too large to send. Please use a photo instead of a PDF for one of them.')
       const res = await send('/api/manager/events/from-menu-card', 'POST', { cards: prepared })
-      onRead(res.draft as MenuCardDraft, photos, capacity)
+      onRead(res.draft as MenuCardDraft, photos, capacity, cutoff)
     } catch (err) {
       setError((err as Error).message || 'Something went wrong. Please try again.')
       setBusy(false)
@@ -155,7 +166,7 @@ export function MenuCardStart({
       </section>
 
       <section className="space-y-6 border border-border bg-ivory px-4 py-6 sm:px-6">
-        <h3 className="caps text-gold-deep">2 · Diners</h3>
+        <h3 className="caps text-gold-deep">2 · Diners and last orders</h3>
         <label className="block space-y-1.5">
           <span className="block text-sm text-charcoal">Diners (capacity)</span>
           <input
@@ -167,10 +178,37 @@ export function MenuCardStart({
           />
           <span className={capacityOk ? 'block text-xs leading-relaxed text-stone' : 'block text-xs leading-relaxed text-destructive'}>
             {capacityOk
-              ? 'How many diners the evening can take in all. The deposit is set to half the price per person, and orders close at 23:59 two days before the evening (you can change both later).'
+              ? 'How many diners the evening can take in all. The deposit is set to half the price per person.'
               : 'Please enter a whole number of diners (at least 1).'}
           </span>
         </label>
+        <div className="space-y-1.5">
+          <span className="block text-sm text-charcoal">Last orders</span>
+          <div className="flex flex-wrap items-center gap-3 text-sm text-charcoal">
+            <input
+              inputMode="numeric"
+              aria-label="Days before the evening"
+              className="w-20 rounded-none border border-stone/40 bg-ivory px-3 py-2 text-base text-charcoal outline-none focus:border-gold"
+              value={daysText}
+              disabled={busy}
+              onChange={(e) => setTypedDays(e.target.value)}
+            />
+            <span>days before, at</span>
+            <input
+              type="time"
+              aria-label="Time"
+              className="w-32 rounded-none border border-stone/40 bg-ivory px-3 py-2 text-base text-charcoal outline-none focus:border-gold"
+              value={cutoff.cutoffTime}
+              disabled={busy}
+              onChange={(e) => setTypedTime(e.target.value)}
+            />
+          </div>
+          <span className={cutoffOk ? 'block text-xs leading-relaxed text-stone' : 'block text-xs leading-relaxed text-destructive'}>
+            {cutoffOk
+              ? `Orders close ${describeCutoff(cutoff)} (French time). 0 days means the day itself. The usual setting is in Settings.`
+              : `Please enter a number of days from 0 to ${MAX_CUTOFF_DAYS} and a time.`}
+          </span>
+        </div>
       </section>
 
       <section className="space-y-6 border border-border bg-ivory px-4 py-6 sm:px-6">
@@ -197,7 +235,7 @@ export function MenuCardStart({
       </section>
 
       <div className="space-y-4">
-        <button type="button" disabled={!chosen.length || !capacityOk || busy} onClick={read} className={buttonStyles('solid')}>
+        <button type="button" disabled={!chosen.length || !capacityOk || !cutoffOk || busy} onClick={read} className={buttonStyles('solid')}>
           {busy ? 'Reading the menu…' : chosen.length > 1 ? 'Read both cards' : 'Read the menu'}
         </button>
         {busy ? (

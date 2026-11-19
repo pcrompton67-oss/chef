@@ -6,25 +6,36 @@ import useSWR from 'swr'
 import { fetcher, send } from '@/app/manager/manager-console'
 import { buttonStyles } from '@/components/site/button-styles'
 import type { BusinessSettings } from '@/lib/settings'
+import { MAX_CUTOFF_DAYS, cutoffRuleOk, describeCutoff } from '@/lib/event-editing'
 import { CollectionPlacesSettings } from '@/components/manager/collection-places-settings'
 import { HomePhotoSettings } from '@/components/manager/home-photo-settings'
 
 /*
  * Console → Settings (issue #6): the bank details customers pay the deposit
  * to (shown on the thank-you page and in the "request received" email), and
- * how many days they have to pay before the order is flagged as overdue.
+ * how many days they have to pay before the order is flagged as overdue,
+ * and when a new evening's orders close (issue #43).
  * Also the master list of collection places (issue #35) and the home page
  * photo (issue #37), each saved separately.
  * More business settings can be added here later.
  */
 
-type Form = { accountName: string; iban: string; bic: string; holdDays: string }
+type Form = {
+  accountName: string
+  iban: string
+  bic: string
+  holdDays: string
+  cutoffDaysBefore: string
+  cutoffTime: string
+}
 
 const toForm = (s: BusinessSettings): Form => ({
   accountName: s.accountName,
   iban: s.iban,
   bic: s.bic,
   holdDays: String(s.holdDays),
+  cutoffDaysBefore: String(s.cutoffDaysBefore),
+  cutoffTime: s.cutoffTime,
 })
 
 export function SettingsTab() {
@@ -40,6 +51,8 @@ export function SettingsTab() {
   const changed = (Object.keys(form) as (keyof Form)[]).some((k) => form[k] !== saved[k])
   const days = Number(form.holdDays)
   const daysOk = Number.isInteger(days) && days >= 1 && days <= 30
+  const cutoff = { cutoffDaysBefore: Number(form.cutoffDaysBefore), cutoffTime: form.cutoffTime }
+  const cutoffOk = form.cutoffDaysBefore.trim() !== '' && cutoffRuleOk(cutoff)
 
   function set(k: keyof Form, v: string) {
     setForm({ ...form!, [k]: v })
@@ -50,7 +63,7 @@ export function SettingsTab() {
     setState('saving')
     setError('')
     try {
-      await send('/api/manager/settings', 'PUT', { ...form, holdDays: days })
+      await send('/api/manager/settings', 'PUT', { ...form, holdDays: days, ...cutoff })
       await mutate()
       setState('saved')
     } catch (e) {
@@ -99,11 +112,47 @@ export function SettingsTab() {
         {!daysOk ? <p className="text-sm text-destructive">Please enter a number of days from 1 to 30.</p> : null}
       </section>
 
+      <section className="space-y-4">
+        <Heading>Last orders</Heading>
+        <p className="text-sm text-stone">
+          When a new evening’s orders close, worked out from its date (French time). You can still change it
+          for any one evening. Evenings already made keep their own.
+        </p>
+        <div className="flex flex-wrap gap-6">
+          <Field label="Days before the evening">
+            <input
+              className={inputClass + ' max-w-24'}
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={MAX_CUTOFF_DAYS}
+              value={form.cutoffDaysBefore}
+              onChange={(e) => set('cutoffDaysBefore', e.target.value)}
+            />
+          </Field>
+          <Field label="At">
+            <input
+              className={inputClass + ' max-w-32'}
+              type="time"
+              value={form.cutoffTime}
+              onChange={(e) => set('cutoffTime', e.target.value)}
+            />
+          </Field>
+        </div>
+        {cutoffOk ? (
+          <p className="text-sm text-stone">Orders close {describeCutoff(cutoff)}. 0 days means the day itself.</p>
+        ) : (
+          <p className="text-sm text-destructive">
+            Please enter a number of days from 0 to {MAX_CUTOFF_DAYS} and a time.
+          </p>
+        )}
+      </section>
+
       <div className="flex flex-wrap items-center gap-4">
         <button
           type="button"
           className={buttonStyles('solid', 'px-10')}
-          disabled={!changed || !daysOk || state === 'saving'}
+          disabled={!changed || !daysOk || !cutoffOk || state === 'saving'}
           onClick={save}
         >
           {state === 'saving' ? 'Saving…' : 'Save settings'}
