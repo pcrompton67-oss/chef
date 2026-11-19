@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { checkRequestPin } from '@/lib/pins'
-import { listCustomers, mailingListCsv, unsubscribeCustomer } from '@/lib/customers'
+import { deleteCustomer, listCustomers, mailingListCsv, unsubscribeCustomer } from '@/lib/customers'
 
 /** Console → Customers: everyone, or (?format=csv) the mailing list as a spreadsheet. */
 export async function GET(req: NextRequest) {
@@ -17,10 +17,14 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ customers: await listCustomers() })
 }
 
-/** Take someone off the mailing list. */
+/** Take someone off the mailing list, or erase them completely (issue #34). */
 export async function POST(req: NextRequest) {
   if (!checkRequestPin(req, 'manager')) return NextResponse.json({ error: 'PIN required' }, { status: 401 })
   const body = (await req.json().catch(() => ({}))) as { id?: unknown; action?: unknown }
+  if (body.action === 'delete' && typeof body.id === 'string') {
+    const result = await deleteCustomer(body.id)
+    return NextResponse.json(result, { status: result.ok ? 200 : 400 })
+  }
   if (body.action !== 'unsubscribe' || typeof body.id !== 'string') {
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
   }

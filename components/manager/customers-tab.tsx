@@ -163,6 +163,28 @@ function CustomerDetail({ customer: c, onChanged }: { customer: CustomerRow; onC
     }
   }
 
+  // Erasing someone for good (issue #34), e.g. after a privacy request.
+  async function remove() {
+    const who = c.name || c.email
+    if (
+      !window.confirm(
+        `Delete ${who} for good?\n\nTheir details, mailing-list sign-ups and email history are erased. ` +
+          `Their past orders stay for your accounts (dates, dishes and amounts) but show as “Deleted customer”.\n\n` +
+          `This can’t be undone.`,
+      )
+    )
+      return
+    setBusy(true)
+    setError('')
+    try {
+      await send('/api/manager/customers', 'POST', { id: c.id, action: 'delete' })
+      onChanged()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not delete this customer.')
+      setBusy(false)
+    }
+  }
+
   return (
     <div className="space-y-6 px-1 pb-6">
       <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[10rem_1fr]">
@@ -209,11 +231,21 @@ function CustomerDetail({ customer: c, onChanged }: { customer: CustomerRow; onC
         )}
       </div>
 
-      {c.onList ? (
-        <button type="button" className={buttonStyles('outline')} onClick={unsubscribe} disabled={busy}>
-          Take off the mailing list
+      <div className="flex flex-wrap gap-3">
+        {c.onList ? (
+          <button type="button" className={buttonStyles('outline')} onClick={unsubscribe} disabled={busy}>
+            Take off the mailing list
+          </button>
+        ) : null}
+        <button
+          type="button"
+          className={buttonStyles('outline', 'border-destructive/60 text-destructive hover:border-destructive hover:text-destructive')}
+          onClick={remove}
+          disabled={busy}
+        >
+          Delete customer
         </button>
-      ) : null}
+      </div>
       {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
     </div>
   )

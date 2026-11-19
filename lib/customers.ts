@@ -1,4 +1,4 @@
-import { query } from '@/lib/db'
+import { query, transaction } from '@/lib/db'
 import type { Locale } from '@/lib/i18n'
 
 /*
@@ -164,6 +164,64 @@ export async function unsubscribeCustomer(id: string): Promise<boolean> {
     [id],
   )
   return rows.length > 0
+}
+
+export type DeleteResult = { ok: true } | { ok: false; error: string }
+
+/** A customer's orders: linked to their record, or placed with their email address. */
+const THEIR_ORDERS = `(o.customer_id = $1::bigint OR (o.email <> '' AND lower(o.email) = lower((SELECT email FROM customers WHERE id = $1::bigint))))`
+
+/**
+ * Erases a customer for good (issue #34), e.g. after a privacy request. Their
+ * record, mailing-list sign-ups and email history go. Their past orders stay
+ * for the accounts (kept 10 years by law), with the date, diners, dishes and
+ * amounts, but nothing that identifies them. Refused while they have an order
+ * for an evening still to come, or a refund still to send.
+ */
+export async function deleteCustomer(id: string): Promise<DeleteResult> {
+  if (!/^\d{1,18}$/.test(id)) return { ok: false, error: 'Customer not found.' }
+  const [c] = await query<{ upcoming: number; refunds: number }>(
+    `SELECT (SELECT count(*) FROM orders o JOIN events e ON e.id = o.event_id
+              WHERE ${THEIR_ORDERS} AND o.status IN ('held', 'awaiting_transfer', 'confirmed')
+                AND (o.status = 'confirmed' OR o.hold_expires_at IS NULL OR o.hold_expires_at > now())
+                AND e.event_date >= (now() AT TIME ZONE 'Europe/Paris')::date)::int AS upcoming,
+            (SELECT count(*) FROM orders o
+              WHERE ${THEIR_ORDERS} AND o.refund_status IN ('requested', 'partial'))::int AS refunds
+       FROM customers WHERE id = $1::bigint`,
+    [id],
+  )
+  if (!c) return { ok: false, error: 'Customer not found. Please refresh the page.' }
+  if (c.upcoming)
+    return {
+      ok: false,
+      error: `They have ${c.upcoming === 1 ? 'an order' : `${c.upcoming} orders`} for an evening still to come. Cancel ${c.upcoming === 1 ? 'it' : 'them'} in Orders (or wait until after the evening), then delete them.`,
+    }
+  if (c.refunds)
+    return { ok: false, error: 'They still have a refund to send. Send it and mark it in Orders first, then delete them.' }
+
+  await transaction([
+    // Email history: everything sent to them, and Eleanor's copies of their orders.
+    {
+      text: `DELETE FROM email_log
+              WHERE lower(to_email) = lower((SELECT email FROM customers WHERE id = $1::bigint))
+                 OR order_id IN (SELECT o.id FROM orders o WHERE ${THEIR_ORDERS})`,
+      params: [id],
+    },
+    {
+      text: `DELETE FROM notify_signups WHERE lower(email) = lower((SELECT email FROM customers WHERE id = $1::bigint))`,
+      params: [id],
+    },
+    // Past orders stay for the accounts, without anything that identifies them.
+    {
+      text: `UPDATE orders o
+                SET name = 'Deleted customer', email = '', mobile = '', allergies = NULL, notes = NULL,
+                    customer_id = NULL, updated_at = now()
+              WHERE ${THEIR_ORDERS}`,
+      params: [id],
+    },
+    { text: `DELETE FROM customers WHERE id = $1::bigint`, params: [id] },
+  ])
+  return { ok: true }
 }
 
 /** The mailing list as a spreadsheet: only real people who are on it. */
