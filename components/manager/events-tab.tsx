@@ -9,9 +9,11 @@ import {
   IMAGES,
   isUploadedPhoto,
   type UploadedPhoto,
+  type CollectionPlace,
   type EditableCourse,
   type EditableOption,
   type EditableEvent,
+  type EditablePoint,
   type EventFacts,
   type ManagerStatus,
 } from '@/lib/event-editing'
@@ -46,11 +48,18 @@ type View =
   | { kind: 'list' }
   | { kind: 'card' }
   | { kind: 'edit'; id: string }
-  | { kind: 'new'; start: EditableEvent; n: number; source: NewSource; notes?: string[] }
+  | { kind: 'new'; start: EditableEvent; n: number; source: NewSource; notes?: string[]; pointsFromList?: boolean }
 
 export function EventsTab() {
   const [view, setView] = useState<View>({ kind: 'list' })
   const list = useSWR<{ events?: EventListItem[]; error?: string }>('/api/manager/events', fetcher)
+  // The master list of collection places (issue #35). Ticked ones start every new evening.
+  const placesRes = useSWR<{ places?: CollectionPlace[] }>('/api/manager/collection-places', fetcher)
+  const places = placesRes.data?.places ?? []
+  const defaults = places.filter((p) => p.inNewEvents).map(pointFromPlace)
+  // A new evening gets the ticked places; with none ticked it keeps what it had (empty, or copied).
+  const withDefaults = (e: EditableEvent) =>
+    defaults.length ? { ...e, collectionPoints: defaults } : e
 
   const back = () => {
     setView({ kind: 'list' })
@@ -64,7 +73,15 @@ export function EventsTab() {
         events={list.data?.events}
         error={list.error || list.data?.error}
         onOpen={(id) => setView({ kind: 'edit', id })}
-        onNew={() => setView({ kind: 'new', start: blankEvent(), n: Date.now(), source: 'blank' })}
+        onNew={() =>
+          setView({
+            kind: 'new',
+            start: withDefaults(blankEvent()),
+            n: Date.now(),
+            source: 'blank',
+            pointsFromList: defaults.length > 0,
+          })
+        }
         onCard={() => setView({ kind: 'card' })}
       />
     )
@@ -75,7 +92,7 @@ export function EventsTab() {
         events={list.data?.events}
         onCancel={back}
         onRead={(draft, base) => {
-          const { start, notes } = eventFromCard(draft, base)
+          const { start, notes } = eventFromCard(draft, base, defaults)
           setView({ kind: 'new', start, n: Date.now(), source: 'card', notes })
           window.scrollTo(0, 0)
         }}
@@ -89,13 +106,21 @@ export function EventsTab() {
       start={view.kind === 'new' ? view.start : null}
       source={view.kind === 'new' ? view.source : null}
       notes={view.kind === 'new' ? view.notes : undefined}
+      pointsFromList={view.kind === 'new' && Boolean(view.pointsFromList)}
+      places={places}
       onBack={back}
       onCreated={(id) => {
         list.mutate()
         setView({ kind: 'edit', id })
       }}
       onDuplicate={(copy) => {
-        setView({ kind: 'new', start: copy, n: Date.now(), source: 'copy' })
+        setView({
+          kind: 'new',
+          start: withDefaults(copy),
+          n: Date.now(),
+          source: 'copy',
+          pointsFromList: defaults.length > 0,
+        })
         window.scrollTo(0, 0)
       }}
     />
@@ -178,6 +203,8 @@ function EventEditor({
   start,
   source,
   notes,
+  pointsFromList,
+  places,
   onBack,
   onCreated,
   onDuplicate,
@@ -186,6 +213,8 @@ function EventEditor({
   start: EditableEvent | null
   source: NewSource | null
   notes?: string[]
+  pointsFromList: boolean
+  places: CollectionPlace[]
   onBack: () => void
   onCreated: (id: string) => void
   onDuplicate: (copy: EditableEvent) => void
@@ -224,6 +253,9 @@ function EventEditor({
   const canDelete = !!form && (form.isTest || (form.status === 'draft' && (facts?.orderCount ?? 0) === 0))
   const usedOptions = new Set(facts?.usedOptionIds ?? [])
   const usedPoints = new Set(facts?.usedPointIds ?? [])
+  // Places on the master list that this evening doesn't have yet (matched by name).
+  const here = new Set(form.collectionPoints.map((p) => p.place.trim().toLowerCase()))
+  const unusedPlaces = places.filter((p) => !here.has(p.place.trim().toLowerCase()))
 
   const update = (patch: Partial<Form>) => {
     setForm((f) => (f ? { ...f, ...patch } : f))
@@ -325,10 +357,13 @@ function EventEditor({
         {isNew ? (
           <p className="text-sm leading-relaxed text-stone">
             {source === 'copy'
-              ? 'Everything has been copied except the date, cut-off and web address. Nothing is saved until you press Save.'
+              ? 'Everything has been copied except the date, cut-off and web address' +
+                (pointsFromList ? ', and the collection points are the places ticked in Settings' : '') +
+                '. Nothing is saved until you press Save.'
               : source === 'card'
                 ? 'Filled in from your menu card. Please check everything against the card, add anything missing, then press Save. It starts as a draft, hidden from the website.'
-                : 'Fill in the details below and press Save. New evenings start as drafts, hidden from the website.'}
+                : 'Fill in the details below and press Save. New evenings start as drafts, hidden from the website.' +
+                  (pointsFromList ? ' The collection points are the places ticked in Settings.' : '')}
           </p>
         ) : facts ? (
           <p className="text-sm text-stone">
@@ -482,7 +517,7 @@ function EventEditor({
             />
             <span>
               This is a test evening (for trying things out). Test evenings can be deleted with all their
-              orders; real ones can’t. This can’t be changed later.
+              orders; real ones only while still a draft with no orders. This can’t be changed later.
             </span>
           </label>
         ) : null}
@@ -635,6 +670,7 @@ function EventEditor({
       <Panel title="Collection points">
         <p className="text-sm text-stone">
           Listed by time once saved. Addresses are only given to customers who order, never shown on the website.
+          The full list of places is in Settings → Collection places.
         </p>
         {form.collectionPoints.map((p, i) => {
           const used = Boolean(p.id && usedPoints.has(p.id))
@@ -664,15 +700,35 @@ function EventEditor({
             </div>
           )
         })}
-        <button
-          type="button"
-          className={buttonStyles('outline', 'px-5 py-2')}
-          onClick={() =>
-            update({ collectionPoints: [...form.collectionPoints, { id: null, place: '', time: '', address: '' }] })
-          }
-        >
-          + Add a collection point
-        </button>
+        <div className="flex flex-wrap items-center gap-4">
+          {unusedPlaces.length ? (
+            <select
+              className={inputClass + ' w-auto'}
+              value=""
+              aria-label="Add a place from the list"
+              onChange={(e) => {
+                const p = unusedPlaces.find((x) => x.id === e.target.value)
+                if (p) update({ collectionPoints: [...form.collectionPoints, pointFromPlace(p)] })
+              }}
+            >
+              <option value="">+ Add a place from the list…</option>
+              {unusedPlaces.map((p) => (
+                <option key={p.id} value={p.id!}>
+                  {p.place} ({p.time})
+                </option>
+              ))}
+            </select>
+          ) : null}
+          <button
+            type="button"
+            className={buttonStyles('outline', 'px-5 py-2')}
+            onClick={() =>
+              update({ collectionPoints: [...form.collectionPoints, { id: null, place: '', time: '', address: '' }] })
+            }
+          >
+            + Add a one-off place
+          </button>
+        </div>
       </Panel>
 
       {/* Other actions */}
@@ -934,6 +990,11 @@ function TestTag() {
 /** Shown under the French boxes (issue #12). */
 const FR_HINT = 'For the French site. Leave empty to show the English there.'
 
+/** A place from the master list, ready to add to an evening at its usual time. */
+function pointFromPlace(p: CollectionPlace): EditablePoint {
+  return { id: null, place: p.place, time: p.time, address: p.address }
+}
+
 function blankOption(): EditableOption {
   return { id: null, name: '', nameFr: '', vegetarian: false, description: '' }
 }
@@ -971,19 +1032,31 @@ function asNewCopy(e: EditableEvent): EditableEvent {
  * date, price and intro from the card; everything else from the chosen
  * previous evening, or empty.
  */
-function eventFromCard(card: MenuCardDraft, base: EditableEvent | null): { start: EditableEvent; notes: string[] } {
-  const from = base ? asNewCopy(base) : blankEvent()
+function eventFromCard(
+  card: MenuCardDraft,
+  base: EditableEvent | null,
+  defaults: EditablePoint[],
+): { start: EditableEvent; notes: string[] } {
+  const copied = base ? asNewCopy(base) : blankEvent()
+  const from = defaults.length ? { ...copied, collectionPoints: defaults } : copied
   const notes = [...card.notes]
   if (!card.title) notes.push('No title was found on the card: please add one.')
   if (!card.date) notes.push('No date was found on the card: please add the date of the evening.')
   if (card.priceCents === null)
     notes.push(base ? 'No price on the card: the price was copied from the earlier evening.' : 'No price on the card: please add one.')
+  const points = defaults.length
+    ? 'The collection points are the places ticked in Settings: please check the times.'
+    : ''
   notes.push(
     base
-      ? `The deposit, number of diners, main photo and collection points were copied from “${base.title}”. Please check them.`
-      : 'The deposit, number of diners and collection points aren’t on the card: please fill them in.',
+      ? defaults.length
+        ? `The deposit, number of diners and main photo were copied from “${base.title}”. Please check them. ${points}`
+        : `The deposit, number of diners, main photo and collection points were copied from “${base.title}”. Please check them.`
+      : defaults.length
+        ? `The deposit and number of diners aren’t on the card: please fill them in. ${points}`
+        : 'The deposit, number of diners and collection points aren’t on the card: please fill them in.',
   )
-  if (base?.isTest)
+  if (base?.isTest && !defaults.length)
     notes.push('That was a test evening: make sure the collection points have real addresses before opening for orders.')
   notes.push('Please check every dish, (v) mark and description line against the card.')
   return {

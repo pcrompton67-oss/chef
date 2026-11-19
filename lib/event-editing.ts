@@ -49,6 +49,16 @@ export type EditablePoint = {
   address: string
 }
 
+/** A place on the master list of collection places (issue #35). */
+export type CollectionPlace = {
+  id: string | null
+  place: string
+  address: string
+  time: string // usual collection time, HH:MM Paris
+  /** Put into every new evening automatically. */
+  inNewEvents: boolean
+}
+
 export type EditableEvent = {
   id: string | null
   slug: string

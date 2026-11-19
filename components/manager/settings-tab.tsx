@@ -5,11 +5,13 @@ import useSWR from 'swr'
 import { fetcher, send } from '@/app/manager/manager-console'
 import { buttonStyles } from '@/components/site/button-styles'
 import type { BusinessSettings } from '@/lib/settings'
+import { CollectionPlacesSettings } from '@/components/manager/collection-places-settings'
 
 /*
  * Console → Settings (issue #6): the bank details customers pay the deposit
  * to (shown on the thank-you page and in the "request received" email), and
  * how many days they have to pay before the order is flagged as overdue.
+ * Also the master list of collection places (issue #35), saved separately.
  * More business settings can be added here later.
  */
 
@@ -109,6 +111,10 @@ export function SettingsTab() {
         {state === 'saved' && !changed ? <span className="text-sm text-stone">Saved.</span> : null}
       </div>
       {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
+
+      <div className="border-t border-border pt-12">
+        <CollectionPlacesSettings />
+      </div>
     </div>
   )
 }

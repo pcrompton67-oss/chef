@@ -171,8 +171,9 @@ export function MenuCardStart({
             ))}
           </select>
           <span className="block text-xs leading-relaxed text-stone">
-            The deposit, number of diners, main photo and collection points aren’t on the card, so they can be copied
-            from an earlier evening. The price is copied too if the card doesn’t show one.
+            The deposit, number of diners and main photo aren’t on the card, so they can be copied from an earlier
+            evening. The price is copied too if the card doesn’t show one. Collection points are the places ticked
+            in Settings.
           </span>
         </label>
       </section>
