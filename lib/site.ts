@@ -8,8 +8,12 @@ export const SITE_URL = 'https://www.ejdineathome.com'
 
 /** Emails are sent from Eleanor's domain through Resend (issue #13). */
 export const EMAIL_FROM = 'Eleanor Jessica <eleanor@ejdineathome.com>'
-/** Where customers' replies go (Resend can only send, not receive). */
-export const EMAIL_REPLY_TO = 'Eleanor <privatechefeleanor@gmail.com>'
+/**
+ * Where customers' replies go: the same address the emails come from, which
+ * helps keep them out of spam. Resend can only send, so Cloudflare Email
+ * Routing forwards eleanor@ejdineathome.com to her Gmail (OWNER_EMAIL).
+ */
+export const EMAIL_REPLY_TO = 'Eleanor Jessica <eleanor@ejdineathome.com>'
 /** Where Eleanor's copy of each new order is sent. */
 export const OWNER_EMAIL = 'privatechefeleanor@gmail.com'
 
