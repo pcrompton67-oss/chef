@@ -1,9 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { fetcher, send } from '@/app/manager/manager-console'
+import { send } from '@/app/manager/manager-console'
 import { buttonStyles } from '@/components/site/button-styles'
-import type { EditableEvent } from '@/lib/event-editing'
 import type { EventListItem } from '@/lib/manager-events'
 import type { MenuCardDraft } from '@/lib/menu-card'
 import { ImagePicker } from '@/components/manager/image-picker'
@@ -15,10 +14,11 @@ import { ImagePicker } from '@/components/manager/image-picker'
  * Claude reads them on the server, and the events tab opens the result in the
  * normal editor as an unsaved draft. Optionally she also picks the main and
  * second photo here (issue #39). The number of diners is set here too
- * (issue #41); the deposit is half the price per person.
+ * (issue #41); the deposit is half the price per person. Nothing is copied
+ * from an earlier evening (issue #42).
  */
 
-/** Photos chosen on this page; empty = decided as before (copied or the usual one). */
+/** Photos chosen on this page; empty = the usual photo. */
 export type CardPhotos = { heroImage: string; secondImage: string }
 
 // Claude reads images best up to about this many pixels on the long side.
@@ -38,24 +38,18 @@ export function MenuCardStart({
 }: {
   events?: EventListItem[]
   onCancel: () => void
-  onRead: (draft: MenuCardDraft, base: EditableEvent | null, photos: CardPhotos, capacity: number) => void
+  onRead: (draft: MenuCardDraft, photos: CardPhotos, capacity: number) => void
 }) {
-  // Real evenings first (latest first), then test ones, marked as such.
-  const byDate = [...(events ?? [])].sort((a, b) => b.date.localeCompare(a.date))
-  const real = byDate.filter((e) => !e.isTest)
-  const choices = [...real, ...byDate.filter((e) => e.isTest)]
+  // Her latest real evening (never a test one), for the usual number of diners.
+  const latest = [...(events ?? [])].filter((e) => !e.isTest).sort((a, b) => b.date.localeCompare(a.date))[0]
   const [cards, setCards] = useState<Partial<Record<Lang, Chosen>>>({})
-  const [baseId, setBaseId] = useState<string | null>(null)
-  // The number of diners Eleanor typed; until she types one, the chosen evening's (or 40).
+  // The number of diners Eleanor typed; until she types one, her latest real evening's (or 40).
   const [typedCapacity, setTypedCapacity] = useState<string | null>(null)
   const [photos, setPhotos] = useState<CardPhotos>({ heroImage: '', secondImage: '' })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
-  // Until Eleanor picks, suggest copying from her latest real evening (never a test one).
-  const chosenBase = baseId ?? real[0]?.id ?? ''
-  const capacityText =
-    typedCapacity ?? String(choices.find((e) => e.id === chosenBase)?.capacity ?? 40)
+  const capacityText = typedCapacity ?? String(latest?.capacity ?? 40)
   const capacity = Number(capacityText)
   const capacityOk = /^\d+$/.test(capacityText.trim()) && capacity >= 1
 
@@ -91,12 +85,7 @@ export function MenuCardStart({
       if (prepared.reduce((n, c) => n + (c.data.length * 3) / 4, 0) > MAX_TOTAL_BYTES)
         throw new Error('Together these files are too large to send. Please use a photo instead of a PDF for one of them.')
       const res = await send('/api/manager/events/from-menu-card', 'POST', { cards: prepared })
-      let base: EditableEvent | null = null
-      if (chosenBase) {
-        const loaded = await fetcher(`/api/manager/events/${chosenBase}`)
-        base = loaded?.event ?? null
-      }
-      onRead(res.draft as MenuCardDraft, base, photos, capacity)
+      onRead(res.draft as MenuCardDraft, photos, capacity)
     } catch (err) {
       setError((err as Error).message || 'Something went wrong. Please try again.')
       setBusy(false)
@@ -166,28 +155,7 @@ export function MenuCardStart({
       </section>
 
       <section className="space-y-6 border border-border bg-ivory px-4 py-6 sm:px-6">
-        <h3 className="caps text-gold-deep">2 · Copy the rest from</h3>
-        <label className="block space-y-1.5">
-          <span className="block text-sm text-charcoal">Previous evening (optional)</span>
-          <select
-            className="w-full rounded-none border border-stone/40 bg-ivory px-3 py-2 text-base text-charcoal outline-none focus:border-gold"
-            value={chosenBase}
-            disabled={busy}
-            onChange={(e) => setBaseId(e.target.value)}
-          >
-            <option value="">Nothing: start empty</option>
-            {choices.map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.title} · {e.date}
-                {e.isTest ? ' (test)' : ''}
-              </option>
-            ))}
-          </select>
-          <span className="block text-xs leading-relaxed text-stone">
-            The main photo isn’t on the card, so it can be copied from an earlier evening. The price is copied too if
-            the card doesn’t show one. Collection points are the places ticked in Settings.
-          </span>
-        </label>
+        <h3 className="caps text-gold-deep">2 · Diners</h3>
         <label className="block space-y-1.5">
           <span className="block text-sm text-charcoal">Diners (capacity)</span>
           <input
@@ -199,7 +167,7 @@ export function MenuCardStart({
           />
           <span className={capacityOk ? 'block text-xs leading-relaxed text-stone' : 'block text-xs leading-relaxed text-destructive'}>
             {capacityOk
-              ? 'How many diners the evening can take in all. The deposit is set to half the price per person.'
+              ? 'How many diners the evening can take in all. The deposit is set to half the price per person, and orders close at 23:59 two days before the evening (you can change both later).'
               : 'Please enter a whole number of diners (at least 1).'}
           </span>
         </label>
@@ -213,7 +181,7 @@ export function MenuCardStart({
         <div className="grid gap-6 sm:grid-cols-2">
           <ImagePicker
             label="Main photo (hero)"
-            hint="At the top of the evening’s page, and on its card on the home page. Empty: copied from the earlier evening, or the usual photo."
+            hint="At the top of the evening’s page, and on its card on the home page. Empty: the usual photo."
             noneLabel="Not chosen"
             value={photos.heroImage}
             onChange={(v) => setPhotos((p) => ({ ...p, heroImage: v }))}
