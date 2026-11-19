@@ -1,7 +1,9 @@
 /**
  * Eleanor's own photos (issue #20), kept in Vercel Blob under event-photos/.
  * The console shrinks each photo to a JPEG before it is sent, so what is
- * stored is already web-sized. Needs BLOB_READ_WRITE_TOKEN (added by Vercel
+ * stored is already web-sized. Needs a Blob store connected to the project:
+ * BLOB_STORE_ID (Vercel's current way, signed in automatically through OIDC)
+ * or the older BLOB_READ_WRITE_TOKEN (issue #38). Added by Vercel
  * when a Blob store is connected to the project). PIN-only: see the API route.
  */
 import { del, list, put } from '@vercel/blob'
@@ -21,7 +23,8 @@ function withTimeout<T>(work: Promise<T>, ms = 20_000): Promise<T> {
 }
 
 export function photosConfigured(): boolean {
-  return Boolean(process.env.BLOB_READ_WRITE_TOKEN)
+  // The storage library uses the store ID first when both are present.
+  return Boolean(process.env.BLOB_STORE_ID?.trim() || process.env.BLOB_READ_WRITE_TOKEN?.trim())
 }
 
 /** Every uploaded photo, newest first. */

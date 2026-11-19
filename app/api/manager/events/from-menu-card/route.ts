@@ -45,16 +45,23 @@ export async function POST(req: NextRequest) {
 
   // Keep the cards as the evening's printed menus (issue #37), so Eleanor
   // doesn't upload them twice. A card that can't be stored just isn't kept.
+  // If one can't be stored, the "Please check" list says why (issue #38).
   const draft = { ...result.draft }
-  if (photosConfigured()) {
+  if (!photosConfigured()) {
+    draft.menuNotKept = 'uploads aren’t set up yet (no Blob store connected in Vercel)'
+  } else {
     const stored = await Promise.all(
       cards.map(async (c) => ({ c, up: await uploadPrintedMenu(new Uint8Array(Buffer.from(c.data, 'base64')), c.language) })),
     )
+    const failed: string[] = []
     for (const { c, up } of stored) {
-      if (!up.ok) continue
-      if (c.language === 'fr') draft.menuImageFr = up.url
+      if (!up.ok) {
+        console.error('Menu card not kept as printed menu', { language: c.language, error: up.error })
+        failed.push(up.error)
+      } else if (c.language === 'fr') draft.menuImageFr = up.url
       else draft.menuImage = up.url
     }
+    if (failed.length) draft.menuNotKept = [...new Set(failed)].join(' ')
   }
   return NextResponse.json({ draft })
 }

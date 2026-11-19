@@ -2,7 +2,7 @@
  * Printed menus (issue #37): the PDF or photo of Eleanor's printed menu for
  * an evening, one per language, kept in Vercel Blob under printed-menus/.
  * Uploaded from Console → Events, or kept automatically from the cards given
- * to "New evening from menu card". Needs BLOB_READ_WRITE_TOKEN, like photos.
+ * to "New evening from menu card". Needs a connected Blob store, like photos (photosConfigured).
  * Files aren't deleted when an evening stops using them (they're small).
  */
 import { put } from '@vercel/blob'

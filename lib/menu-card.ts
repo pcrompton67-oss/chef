@@ -82,6 +82,8 @@ export type MenuCardDraft = {
   /** The cards themselves, kept as the evening's printed menus (issue #37); empty if not stored. */
   menuImage?: string
   menuImageFr?: string
+  /** Why a card couldn't be kept as a printed menu, if it couldn't (issue #38). */
+  menuNotKept?: string
   title: string
   intro: string
   titleFr: string

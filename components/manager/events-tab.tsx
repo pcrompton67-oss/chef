@@ -941,6 +941,10 @@ function eventFromCard(
   if (base?.isTest && !defaults.length)
     notes.push('That was a test evening: make sure the collection points have real addresses before opening for orders.')
   notes.push('Please check every dish, (v) mark and description line against the card.')
+  if (card.menuNotKept)
+    notes.push(
+      `Your card couldn’t be kept as the printed menu, so please upload it under “Printed menu”. Reason: ${card.menuNotKept}`,
+    )
   if (card.menuImage || card.menuImageFr)
     notes.push(
       card.menuImage && card.menuImageFr
