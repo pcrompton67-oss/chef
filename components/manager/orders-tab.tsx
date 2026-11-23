@@ -628,7 +628,7 @@ function AddOrder({
       <Field label="Allergies or dietary needs">
         <textarea rows={2} className={inputClass} value={f.allergies} onChange={(e) => set({ allergies: e.target.value })} />
       </Field>
-      <Field label="Notes (only you see these)">
+      <Field label="Notes">
         <textarea rows={2} className={inputClass} value={f.notes} onChange={(e) => set({ notes: e.target.value })} />
       </Field>
 

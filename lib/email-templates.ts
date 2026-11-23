@@ -138,6 +138,11 @@ export function renderEmail(kind: OrderEmailKind, o: EmailOrder, bank: BankDetai
     b.heading(c.allergies)
     b.para(o.allergies.trim() || c.noAllergies)
     b.para(c.confirmed.allergiesNote, true)
+    // A card order's confirmation is sent straight after ordering, so its notes are still the customer's own.
+    if (o.paymentMethod === 'card' && customerNotes(o)) {
+      b.heading(c.notes)
+      b.para(customerNotes(o))
+    }
     summary(b, o, loc, true)
     own('confirmed', 'closing', () => {})
   } else {
@@ -463,6 +468,16 @@ function summary(b: Builder, o: EmailOrder, loc: Locale, short: boolean) {
   if (o.balanceCents > 0 && o.depositCents > 0) money_rows.push([c.balance, money(o.balanceCents)])
   b.table(money_rows)
   if (!short && o.allergies.trim()) b.table([[c.allergies, o.allergies.trim()]])
+  if (!short && customerNotes(o)) b.table([[c.notes, customerNotes(o)]])
+}
+
+/**
+ * The notes a customer wrote on the website order form. Only website orders:
+ * on an order Eleanor took herself the notes are her own. Used only in the
+ * emails sent straight after ordering, before Eleanor can add to them.
+ */
+function customerNotes(o: EmailOrder): string {
+  return o.source === 'website' ? o.notes.trim() : ''
 }
 
 /** Eleanor's copy of a new order (English, with everything she needs). */

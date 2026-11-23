@@ -142,6 +142,8 @@ const en = {
     email: 'Email',
     allergies: 'Allergies or dietary needs',
     allergiesHint: 'For every diner, please. If there are none, simply write “None”.',
+    notes: 'Notes (optional)',
+    notesHint: 'Anything else Eleanor should know: a special occasion, a question about collection, …',
     marketing: 'Yes, send me new box dates and other news from Eleanor Jessica.',
     agreement:
       'I understand that my order is subject to availability, is confirmed only once the deposit is received, and that the balance is paid on collection.',
@@ -251,6 +253,7 @@ const en = {
     address: 'Address',
     allergies: 'Allergies & dietary needs',
     noAllergies: 'None given',
+    notes: 'Your notes',
     total: 'Total',
     deposit: 'Deposit',
     balance: 'Balance on collection',
@@ -724,6 +727,8 @@ const fr: Content = {
     email: 'E-mail',
     allergies: 'Allergies ou régimes alimentaires',
     allergiesHint: 'Pour chaque convive, s’il vous plaît. S’il n’y en a pas, écrivez simplement « Aucune ».',
+    notes: 'Remarques (facultatif)',
+    notesHint: 'Tout ce qu’Eleanor devrait savoir : une occasion spéciale, une question sur la récupération, …',
     marketing: 'Oui, envoyez-moi les dates des prochaines box et les autres actualités d’Eleanor Jessica.',
     agreement:
       'Je comprends que ma commande est sous réserve de disponibilité, qu’elle n’est confirmée qu’à réception de l’acompte et que le solde est réglé à la récupération.',
@@ -828,6 +833,7 @@ const fr: Content = {
     address: 'Adresse',
     allergies: 'Allergies et régimes',
     noAllergies: 'Aucune indiquée',
+    notes: 'Vos remarques',
     total: 'Total',
     deposit: 'Acompte',
     balance: 'Solde au retrait',

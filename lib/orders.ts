@@ -34,6 +34,8 @@ export type OrderInput = {
   mobile: string
   email: string
   allergies: string
+  /** Anything else the customer wants Eleanor to know (optional); saved as the order's notes. */
+  notes: string
   marketing: boolean
   agreed: boolean
   paymentMethod: 'card' | 'bank_transfer'
@@ -81,6 +83,7 @@ export function parseOrderInput(body: Record<string, unknown>): OrderInput {
     mobile: clean(body.mobile, 40),
     email: clean(body.email),
     allergies: clean(body.allergies, 1000),
+    notes: clean(body.notes, 1000),
     marketing: body.marketing === true,
     agreed: body.agreed === true,
     paymentMethod: body.paymentMethod === 'card' ? 'card' : 'bank_transfer',
@@ -157,6 +160,7 @@ export async function placeOrder(input: OrderInput): Promise<OrderResult> {
       quantities,
       card ? 'card' : 'bank_transfer',
       card ? CARD_HOLD_MINUTES : null,
+      input.notes || null,
     ] },
   ])
 
@@ -192,6 +196,7 @@ export async function placeOrder(input: OrderInput): Promise<OrderResult> {
 // $1 event slug · $2 diners · $3 collection point · $4 name · $5 mobile · $6 email
 // $7 allergies · $8 language · $9 marketing consent · $10 option ids · $11 quantities
 // $12 payment method · $13 minutes the places are held (card), or null (bank transfer: until Eleanor acts)
+// $14 the customer's notes, or null
 const PLACE_ORDER_SQL = `
 WITH ev AS (
   SELECT e.id, e.status, e.is_test, e.price_cents, e.deposit_cents,
@@ -231,10 +236,10 @@ cust AS (
 ),
 ord AS (
   INSERT INTO orders (event_id, collection_point_id, customer_id, diners, name, mobile, email,
-                      allergies, language, source, payment_method, status,
+                      allergies, notes, language, source, payment_method, status,
                       total_cents, deposit_cents, balance_cents, hold_expires_at, is_test)
   SELECT ok.id, $3::bigint, cust.id, $2::int, $4::text, $5::text, $6::text,
-         $7::text, $8::text, 'website', $12::text, 'held',
+         $7::text, $14::text, $8::text, 'website', $12::text, 'held',
          ok.price_cents * $2::int, ok.deposit_cents * $2::int,
          (ok.price_cents - ok.deposit_cents) * $2::int,
          now() + make_interval(mins => $13::int), ok.is_test

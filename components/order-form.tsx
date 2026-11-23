@@ -49,6 +49,7 @@ export function OrderForm({ event, locale, maxDiners, cardPayments }: Props) {
   const [mobile, setMobile] = useState('')
   const [email, setEmail] = useState('')
   const [allergies, setAllergies] = useState('')
+  const [notes, setNotes] = useState('')
   const [marketing, setMarketing] = useState(false)
   const [agreed, setAgreed] = useState(false)
   const [payment, setPayment] = useState<'card' | 'bank_transfer'>(cardPayments ? 'card' : 'bank_transfer')
@@ -124,6 +125,7 @@ export function OrderForm({ event, locale, maxDiners, cardPayments }: Props) {
           mobile,
           email,
           allergies,
+          notes,
           marketing,
           agreed,
           paymentMethod: byCard ? 'card' : 'bank_transfer',
@@ -312,6 +314,14 @@ export function OrderForm({ event, locale, maxDiners, cardPayments }: Props) {
               setErrors((prev) => ({ ...prev, allergies: undefined }))
             }}
             error={errors.allergies}
+            multiline
+          />
+          <TextField
+            id="field-notes"
+            label={c.notes}
+            hint={c.notesHint}
+            value={notes}
+            onChange={setNotes}
             multiline
           />
         </div>
